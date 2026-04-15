@@ -1,25 +1,26 @@
 const techBlue = '#00e5ff';
-const deepBlue = '#0a192f';
-const flatBlue = '#2563eb';
+const dutDeepBg = '#011e41';
+const dutCardBg = '#003d79';
 const techWhite = '#f8fafc';
+const dutBorder = '#1a5c9e';
 
 export default {
   light: {
-    text: deepBlue,
-    background: '#ffffff',
-    tint: flatBlue,
-    tabIconDefault: '#94a3b8',
-    tabIconSelected: flatBlue,
-    cardBackground: '#f1f5f9',
-    border: '#e2e8f0',
+    text: techWhite,
+    background: dutDeepBg,
+    tint: techBlue,
+    tabIconDefault: '#7ba2cd',
+    tabIconSelected: techBlue,
+    cardBackground: dutCardBg,
+    border: dutBorder,
   },
   dark: {
     text: techWhite,
-    background: deepBlue,
+    background: dutDeepBg,
     tint: techBlue,
-    tabIconDefault: '#475569',
+    tabIconDefault: '#7ba2cd',
     tabIconSelected: techBlue,
-    cardBackground: '#112240',
-    border: '#1e293b',
+    cardBackground: dutCardBg,
+    border: dutBorder,
   },
 };
