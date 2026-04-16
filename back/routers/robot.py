@@ -6,7 +6,9 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from deps import get_db, get_current_user_id
+from models.user import User
 from models.robot import Robot
+from models.binding import UserRobotBinding
 from models.message import Message
 from models.summary import Summary
 from models.personality import RobotPersonalityRecord, PersonalityPreset
@@ -41,6 +43,43 @@ def _get_robot_or_404(robot_id: str, db: Session) -> Robot:
     return robot
 
 
+def _get_robot_for_user_or_none(robot_id: str, current_user_id: str, db: Session) -> Robot | None:
+    """Return the robot when the current user is allowed to access it.
+
+    Admin users can access every robot. Normal users can only access robots
+    they have an active binding for. A missing binding is represented as None
+    so handlers can return the frontend's normal R payload instead of an HTTP
+    exception.
+    """
+    robot = _get_robot_or_404(robot_id, db)
+    current_user = (
+        db.query(User)
+        .filter(User.user_id == current_user_id, User.deleted_at.is_(None))
+        .first()
+    )
+    if current_user is None:
+        raise HTTPException(status_code=404, detail="用户不存在")
+    if current_user.is_admin == 1:
+        return robot
+
+    binding = (
+        db.query(UserRobotBinding)
+        .filter(
+            UserRobotBinding.user_id == current_user_id,
+            UserRobotBinding.robot_id == robot_id,
+            UserRobotBinding.deleted_at.is_(None),
+        )
+        .first()
+    )
+    if binding is None:
+        return None
+    return robot
+
+
+def _permission_denied_response() -> R:
+    return R.fail(code=403, msg="权限不足：当前用户未绑定该机器人")
+
+
 def _build_personality_data(record: RobotPersonalityRecord) -> PersonalityData:
     """将人格记录 ORM 对象转为 PersonalityData schema"""
     return PersonalityData(
@@ -66,9 +105,10 @@ def _build_personality_data(record: RobotPersonalityRecord) -> PersonalityData:
 def get_personality(
     robotID: str,
     db: Session = Depends(get_db),
-    _: str = Depends(get_current_user_id),
+    current_user_id: str = Depends(get_current_user_id),
 ):
-    _get_robot_or_404(robotID, db)
+    if _get_robot_for_user_or_none(robotID, current_user_id, db) is None:
+        return _permission_denied_response()
     record = (
         db.query(RobotPersonalityRecord)
         .filter(
@@ -88,12 +128,13 @@ def change_personality(
     robotID: str,
     body: ChangePersonalityRequest,
     db: Session = Depends(get_db),
-    _: str = Depends(get_current_user_id),
+    current_user_id: str = Depends(get_current_user_id),
 ):
     """
     将旧的当前人格标记为历史，新建一条 is_current=1 的人格记录。
     """
-    _get_robot_or_404(robotID, db)
+    if _get_robot_for_user_or_none(robotID, current_user_id, db) is None:
+        return _permission_denied_response()
     ts = now_ms()
 
     # 旧人格设为历史
@@ -133,9 +174,11 @@ def change_tone(
     robotID: str,
     body: ChangeToneRequest,
     db: Session = Depends(get_db),
-    _: str = Depends(get_current_user_id),
+    current_user_id: str = Depends(get_current_user_id),
 ):
-    robot = _get_robot_or_404(robotID, db)
+    robot = _get_robot_for_user_or_none(robotID, current_user_id, db)
+    if robot is None:
+        return _permission_denied_response()
     tone = db.query(Tone).filter(Tone.tone_id == body.toneID, Tone.deleted_at.is_(None)).first()
     if tone is None:
         raise HTTPException(status_code=404, detail="音色不存在")
@@ -187,7 +230,6 @@ def list_skills(
     db: Session = Depends(get_db),
     _: str = Depends(get_current_user_id),
 ):
-    _get_robot_or_404(robotID, db)
     skills = db.query(Skill).filter(Skill.enabled == 1, Skill.deleted_at.is_(None)).all()
     return R.ok(data=SkillListData(
         skillList=[SkillItem(skillID=s.skill_id, skillName=s.skill_name) for s in skills]
@@ -202,13 +244,14 @@ def get_messages(
     cursor: int,
     limit: int,
     db: Session = Depends(get_db),
-    _: str = Depends(get_current_user_id),
+    current_user_id: str = Depends(get_current_user_id),
 ):
     """
     基于 created_at 时间戳游标分页。
     cursor=0 表示从最新开始，非 0 表示查询 created_at < cursor 的记录（向历史方向翻页）。
     """
-    _get_robot_or_404(robotID, db)
+    if _get_robot_for_user_or_none(robotID, current_user_id, db) is None:
+        return _permission_denied_response()
 
     query = db.query(Message).filter(
         Message.robot_id == robotID,
@@ -251,10 +294,11 @@ def get_abstracts(
     cursor: int,
     limit: int,
     db: Session = Depends(get_db),
-    _: str = Depends(get_current_user_id),
+    current_user_id: str = Depends(get_current_user_id),
 ):
     """与消息分页逻辑相同，cursor=0 从最新开始"""
-    _get_robot_or_404(robotID, db)
+    if _get_robot_for_user_or_none(robotID, current_user_id, db) is None:
+        return _permission_denied_response()
 
     query = db.query(Summary).filter(
         Summary.robot_id == robotID,
@@ -294,9 +338,10 @@ def get_abstracts(
 def list_user_portraits(
     robotID: str,
     db: Session = Depends(get_db),
-    _: str = Depends(get_current_user_id),
+    current_user_id: str = Depends(get_current_user_id),
 ):
-    _get_robot_or_404(robotID, db)
+    if _get_robot_for_user_or_none(robotID, current_user_id, db) is None:
+        return _permission_denied_response()
     portraits = (
         db.query(UserPortrait)
         .filter(UserPortrait.robot_id == robotID, UserPortrait.deleted_at.is_(None))
@@ -319,9 +364,10 @@ def get_user_portrait(
     robotID: str,
     portraitID: str,
     db: Session = Depends(get_db),
-    _: str = Depends(get_current_user_id),
+    current_user_id: str = Depends(get_current_user_id),
 ):
-    _get_robot_or_404(robotID, db)
+    if _get_robot_for_user_or_none(robotID, current_user_id, db) is None:
+        return _permission_denied_response()
     portrait = (
         db.query(UserPortrait)
         .filter(
@@ -367,9 +413,10 @@ def get_user_portrait(
 def get_family_portrait(
     robotID: str,
     db: Session = Depends(get_db),
-    _: str = Depends(get_current_user_id),
+    current_user_id: str = Depends(get_current_user_id),
 ):
-    _get_robot_or_404(robotID, db)
+    if _get_robot_for_user_or_none(robotID, current_user_id, db) is None:
+        return _permission_denied_response()
     portrait = (
         db.query(FamilyPortrait)
         .filter(

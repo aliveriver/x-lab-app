@@ -86,7 +86,7 @@ x-lab-app/
   back/
     main.py              # FastAPI 入口，挂载路由
     database.py          # SQLAlchemy 引擎、Session、建表和补列
-    deps.py              # 数据库依赖、用户鉴权依赖
+    deps.py              # 数据库依赖、当前用户鉴权依赖
     seed.py              # 初始化演示数据和管理员账号
     utils.py             # UUID、时间戳、JWT 工具
     models/              # SQLAlchemy ORM 模型
@@ -102,26 +102,38 @@ x-lab-app/
 
 ## 接口接入状态
 
-已接入真实后端的前端能力：
+用户能力：
 
 - 登录 / 注册：`POST /api/user/token`
 - 用户信息读取和修改：`GET /api/user/{userID}/info`、`PUT /api/user/{userID}/info/change`
 - 机器人列表：`GET /api/user/{userID}/robot`
 - 绑定机器人：`POST /api/user/robot/bind`
+- 解绑机器人：`DELETE /api/user/robot/unbind`
 - 修改机器人别名：`PUT /api/user/robot/alias`
 
-机器人数据能力也已接入真实后端：
+机器人选项能力。这些接口用于绑定前选择，只要求 token 有效，不要求用户已绑定该机器人：
+
+- 音色列表：`GET /api/robot/{robotID}/tone`
+- 初始人格列表：`GET /api/robot/{robotID}/initPersonality`
+- 技能列表：`GET /api/robot/{robotID}/skill`
+
+机器人数据能力。这些接口需要 token，并按 `users.is_admin` 和用户绑定关系控制权限：
 
 - 机器人当前人格：`GET /api/robot/{robotID}/personality`
-- 音色列表和修改：`GET /api/robot/{robotID}/tone`、`PUT /api/robot/{robotID}/tone/change`
-- 初始人格列表：`GET /api/robot/{robotID}/initPersonality`
+- 修改机器人人格：`PUT /api/robot/{robotID}/personality/change`
+- 修改机器人音色：`PUT /api/robot/{robotID}/tone/change`
 - 消息和摘要：`GET /api/robot/{robotID}/message/{cursor}/{limit}`、`GET /api/robot/{robotID}/abstract/{cursor}/{limit}`
 - 用户画像和家庭画像：`GET /api/robot/{robotID}/userportrait`、`GET /api/robot/{robotID}/userportrait/{portraitID}`、`GET /api/robot/{robotID}/familyportrait`
 
-管理员能力：
+## 权限规则
 
-- 管理员标识存储在 `users.is_admin` 字段。
-- 管理员使用现有机器人列表接口时可以看到所有机器人。
+- token 里包含当前用户 `userID`。
+- 管理员标识存储在 `users.is_admin` 字段，`1` 表示管理员，`0` 表示普通用户。
+- 管理员调用 `GET /api/user/{userID}/robot` 时返回所有未删除机器人；普通用户只返回自己的绑定机器人。
+- 管理员可以读取和修改任意机器人的人格、音色、消息、摘要、用户画像和家庭画像。
+- 普通用户访问机器人数据接口时，必须已绑定对应 `robotID`。
+- 普通用户未绑定对应机器人时，接口返回统一业务响应：`code=403`、`data=null`、`msg="权限不足：当前用户未绑定该机器人"`。
+- `tone`、`initPersonality`、`skill` 三个选项列表接口不校验绑定关系，便于绑定前拉取候选项。
 
 ## 检查命令
 
