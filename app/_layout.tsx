@@ -6,6 +6,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
 import { useColorScheme } from '@/components/useColorScheme';
 import { RobotProvider } from '@/context/RobotContext';
+import { UserProvider } from '@/context/UserContext';
 
 export {
   // Catch any errors thrown by the Layout component.
@@ -57,12 +58,14 @@ function RootLayoutNav() {
 
   return (
     <ThemeProvider value={customTheme}>
-      <RobotProvider>
-        <Stack>
-          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-          <Stack.Screen name="modal" options={{ presentation: 'modal' }} />
-        </Stack>
-      </RobotProvider>
+      <UserProvider>
+        <RobotProvider>
+          <Stack>
+            <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+            <Stack.Screen name="modal" options={{ presentation: 'modal' }} />
+          </Stack>
+        </RobotProvider>
+      </UserProvider>
     </ThemeProvider>
   );
 }

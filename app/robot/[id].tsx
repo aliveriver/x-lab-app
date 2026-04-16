@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { StyleSheet, ScrollView, Pressable, TextInput } from 'react-native';
-import { useLocalSearchParams, Stack } from 'expo-router';
+import { useLocalSearchParams, Stack, useRouter } from 'expo-router';
 import { Text, View } from '@/components/Themed';
 import { FontAwesome } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -11,6 +11,7 @@ import { useRobots } from '@/context/RobotContext';
 
 export default function RobotDetailScreen() {
   const { id } = useLocalSearchParams();
+  const router = useRouter();
   const { robots, updateRobotName } = useRobots();
   
   const currentRobot = robots.find(r => r.robotCode === id);
@@ -92,6 +93,28 @@ export default function RobotDetailScreen() {
               <View style={styles.actionTextContainer}>
                 <Text style={styles.actionLabel}>初始人格</Text>
                 <Text style={styles.actionValue}>{personalityName}</Text>
+              </View>
+              <FontAwesome name="angle-right" size={24} color="#475569" />
+            </LinearGradient>
+          </Pressable>
+
+          <Pressable onPress={() => router.push({ pathname: '/(tabs)/memory', params: { targetRobot: id } })}>
+            <LinearGradient colors={['#003d79', '#011e41']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.actionButton}>
+              <FontAwesome name="database" size={20} color="#00e5ff" />
+              <View style={styles.actionTextContainer}>
+                <Text style={styles.actionLabel}>云端档案</Text>
+                <Text style={styles.actionValue}>检索终端记忆记录</Text>
+              </View>
+              <FontAwesome name="angle-right" size={24} color="#475569" />
+            </LinearGradient>
+          </Pressable>
+
+          <Pressable onPress={() => router.push({ pathname: '/(tabs)/portrait', params: { targetRobot: id } })}>
+            <LinearGradient colors={['#003d79', '#011e41']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.actionButton}>
+              <FontAwesome name="address-card" size={20} color="#00e5ff" />
+              <View style={styles.actionTextContainer}>
+                <Text style={styles.actionLabel}>神经画像矩阵</Text>
+                <Text style={styles.actionValue}>锁定该终端画像</Text>
               </View>
               <FontAwesome name="angle-right" size={24} color="#475569" />
             </LinearGradient>
