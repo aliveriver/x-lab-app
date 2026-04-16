@@ -5,11 +5,13 @@ import { useUser } from './UserContext';
 type RobotType = {
   robotCode: string; // The backend uses robotCode
   robotName: string;
+  toneID?: number;
+  personalityID?: number;
 };
 
 type RobotContextType = {
   robots: RobotType[];
-  addRobot: (robotID: string, personalityID: number, toneID: number) => Promise<void>;
+  addRobot: (robotID: string, robotName: string, personalityID: number, toneID: number) => Promise<void>;
   updateRobotName: (code: string, newName: string) => void;
   loadRobots: () => Promise<void>;
 };
@@ -36,13 +38,14 @@ export const RobotProvider = ({ children }: any) => {
     loadRobots();
   }, [user.userID]);
 
-  const addRobot = async (robotID: string, personalityID: number, toneID: number) => {
+  const addRobot = async (robotID: string, robotName: string, personalityID: number, toneID: number) => {
     if (!user.userID) return;
     await fetchApi(`/api/user/robot/bind`, {
       method: 'POST',
       bodyData: {
         userID: user.userID,
         robotID,
+        robotName,
         personalityID,
         toneID
       }

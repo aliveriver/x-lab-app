@@ -98,7 +98,7 @@ def bind_robot(
         binding_id=new_uuid(),
         user_id=body.userID,
         robot_id=body.robotID,
-        robot_alias="",
+        robot_alias=body.robotName or "",
         init_personality_id=body.personalityID,
         bind_tone_id=body.toneID,
         created_at=ts,
@@ -263,7 +263,12 @@ def get_user_robots(
         robots = db.query(Robot).filter(Robot.deleted_at.is_(None)).all()
         return R.ok(data=UserRobotListData(
             robotList=[
-                RobotItem(robotCode=r.robot_id, robotName=r.robot_name or r.robot_id)
+                RobotItem(
+                    robotCode=r.robot_id, 
+                    robotName=r.robot_name or r.robot_id,
+                    toneID=r.current_tone_id,
+                    personalityID=None 
+                )
                 for r in robots
             ]
         ))
@@ -284,6 +289,15 @@ def get_user_robots(
     for b in bindings:
         robot = db.query(Robot).filter(Robot.robot_id == b.robot_id).first()
         name = b.robot_alias or (robot.robot_name if robot else b.robot_id)
-        robot_list.append(RobotItem(robotCode=b.robot_id, robotName=name))
+        
+        # 尝试使用绑定时的音色如果没绑定调机器人当前设置的音色
+        tone_id = b.bind_tone_id if b.bind_tone_id is not None else getattr(robot, 'current_tone_id', None)
+        
+        robot_list.append(RobotItem(
+            robotCode=b.robot_id, 
+            robotName=name,
+            toneID=tone_id,
+            personalityID=b.init_personality_id
+        ))
 
     return R.ok(data=UserRobotListData(robotList=robot_list))

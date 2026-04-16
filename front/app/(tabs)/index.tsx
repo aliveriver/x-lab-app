@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { StyleSheet, FlatList, Pressable } from 'react-native';
+import { StyleSheet, FlatList, Pressable, TextInput } from 'react-native';
 import { View } from '@/components/Themed';
 import { FontAwesome } from '@expo/vector-icons';
 import EmptyRobotView from '@/components/robot/EmptyRobotView';
@@ -10,11 +10,18 @@ import { useRobots } from '@/context/RobotContext';
 export default function RobotScreen() {
   const { robots, addRobot } = useRobots();
   const [isAddModalVisible, setAddModalVisible] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+
+  // 过滤逻辑
+  const filteredRobots = robots.filter(r => 
+    r.robotName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    r.robotCode.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   // Simulates API call to /api/user/robot/bind
   const handleAddRobot = async (robotData: any) => {
     try {
-      await addRobot(robotData.robotCode, robotData.personalityID, robotData.toneID);
+      await addRobot(robotData.robotCode, robotData.robotName, robotData.personalityID, robotData.toneID);
     } catch (e: any) {
       alert('绑定失败: ' + (e.message || '网络异常'));
     }
@@ -23,12 +30,28 @@ export default function RobotScreen() {
 
   return (
     <View style={styles.container}>
+      <View style={styles.searchContainer}>
+        <FontAwesome name="search" size={16} color="#00e5ff" style={styles.searchIcon} />
+        <TextInput
+          style={styles.searchInput}
+          placeholder="搜索终端节点别备或UUID..."
+          placeholderTextColor="#475569"
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+        />
+        {searchQuery.length > 0 && (
+          <Pressable onPress={() => setSearchQuery('')} style={styles.clearIcon}>
+            <FontAwesome name="times-circle" size={16} color="#475569" />
+          </Pressable>
+        )}
+      </View>
+
       {robots.length === 0 ? (
         <EmptyRobotView onAddPress={() => setAddModalVisible(true)} />
       ) : (
         <>
           <FlatList
-            data={robots}
+            data={filteredRobots}
             keyExtractor={(item) => item.robotCode}
             renderItem={({ item }) => (
               <RobotListItem robotCode={item.robotCode} robotName={item.robotName} />
@@ -55,8 +78,32 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   listContainer: {
-    paddingTop: 20,
+    paddingTop: 10,
     paddingBottom: 100, // Make room for FAB
+  },
+  searchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginHorizontal: 16,
+    marginTop: 15,
+    marginBottom: 5,
+    backgroundColor: 'rgba(5, 11, 20, 0.6)',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#1a5c9e',
+    paddingHorizontal: 10,
+  },
+  searchIcon: {
+    marginRight: 8,
+  },
+  searchInput: {
+    flex: 1,
+    color: '#ffffff',
+    fontSize: 14,
+    paddingVertical: 10,
+  },
+  clearIcon: {
+    padding: 5,
   },
   fab: {
     position: 'absolute',

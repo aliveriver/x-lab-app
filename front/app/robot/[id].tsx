@@ -54,7 +54,36 @@ export default function RobotDetailScreen() {
     if (currentRobot?.robotName) {
       setRobotName(currentRobot.robotName);
     }
-  }, [currentRobot?.robotName]);
+    if (currentRobot?.toneID) setToneID(currentRobot.toneID);
+    if (currentRobot?.personalityID) setPersonalityID(currentRobot.personalityID);
+  }, [currentRobot?.robotName, currentRobot?.toneID, currentRobot?.personalityID]);
+
+  useEffect(() => {
+    if (!robotID) return;
+
+    const loadNames = async () => {
+      try {
+        if (currentRobot?.toneID) {
+          const toneRes = await fetchApi(`/api/robot/${robotID}/tone`);
+          if ((toneRes.code === 0 || toneRes.code === 200) && toneRes.data?.toneList) {
+            const tone = toneRes.data.toneList.find((t: any) => t.toneID === currentRobot.toneID);
+            if (tone) setToneName(tone.toneName);
+          }
+        }
+        if (currentRobot?.personalityID) {
+          const pRes = await fetchApi(`/api/robot/${robotID}/initPersonality`);
+          if ((pRes.code === 0 || pRes.code === 200) && pRes.data?.personalityList) {
+            const p = pRes.data.personalityList.find((p: any) => p.personalityID === currentRobot.personalityID);
+            if (p) setPersonalityName(p.personalityName);
+          }
+        }
+      } catch (e) {
+        console.error('Failed to load names', e);
+      }
+    };
+
+    loadNames();
+  }, [robotID, currentRobot?.toneID, currentRobot?.personalityID]);
 
   useEffect(() => {
     if (!robotID) return;

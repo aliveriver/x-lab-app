@@ -25,6 +25,7 @@ class BindRobotRequest(BaseModel):
     """POST /api/user/robot/bind"""
     userID: str
     robotID: str
+    robotName: Optional[str] = None
     personalityID: Optional[int] = None
     toneID: Optional[int] = None
 
@@ -76,6 +77,8 @@ class UserInfo(BaseModel):
 class RobotItem(BaseModel):
     robotCode: str
     robotName: str
+    toneID: Optional[int] = None
+    personalityID: Optional[int] = None
 
 
 class UserRobotListData(BaseModel):

@@ -1,5 +1,6 @@
-import React, { useEffect, useState } from 'react';
-import { StyleSheet, Pressable, ScrollView, Modal } from 'react-native';
+import React, { useEffect, useState, useCallback } from 'react';
+import { StyleSheet, Pressable, ScrollView, Modal, Platform, TextInput } from 'react-native';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { Text, View } from '@/components/Themed';
 import { useLocalSearchParams } from 'expo-router';
 import { useRobots } from '@/context/RobotContext';
@@ -29,47 +30,67 @@ export default function MemoryScreen() {
   const [messages, setMessages] = useState<MessageItem[]>([]);
   const [abstracts, setAbstracts] = useState<AbstractItem[]>([]);
   const [loading, setLoading] = useState(false);
+  
+  const [startDate, setStartDate] = useState<Date | null>(null);
+  const [endDate, setEndDate] = useState<Date | null>(null);
+  const [showStartPicker, setShowStartPicker] = useState(false);
+  const [showEndPicker, setShowEndPicker] = useState(false);
 
+  // 快捷刷新
+  const handleFilter = () => {
+    loadData();
+  };
+
+  const hasInitializedTarget = React.useRef(false);
   useEffect(() => {
-    if (targetRobot) {
+    if (targetRobot && !hasInitializedTarget.current) {
       setSelectedRobotId(targetRobot as string);
+      hasInitializedTarget.current = true;
     } else if (robots.length > 0 && !selectedRobotId) {
       setSelectedRobotId(robots[0].robotCode);
     }
-  }, [targetRobot, robots, selectedRobotId]);
+  }, [targetRobot, robots]);
+
+  const loadData = useCallback(async () => {
+    if (!selectedRobotId) return;
+    setLoading(true);
+    try {
+      let params = [];
+      if (startDate) {
+        params.push(`startTime=${startDate.getTime()}`);
+      }
+      if (endDate) {
+        const et = new Date(endDate);
+        et.setHours(23, 59, 59, 999);
+        params.push(`endTime=${et.getTime()}`);
+      }
+      const qStr = params.length > 0 ? `?${params.join('&')}` : '';
+
+      const endpoint =
+        activeTab === 'SUMMARY'
+          ? `/api/robot/${selectedRobotId}/abstract/0/20${qStr}`
+          : `/api/robot/${selectedRobotId}/message/0/20${qStr}`;
+      
+      const result = await fetchApi(endpoint);
+      if ((result.code === 0 || result.code === 200) && result.data) {
+        if (activeTab === 'SUMMARY') {
+          setAbstracts(result.data.abstractList || []);
+        } else {
+          setMessages(result.data.messageList || []);
+        }
+      }
+    } catch (e) {
+      console.error('Failed to load memory data', e);
+      if (activeTab === 'SUMMARY') setAbstracts([]);
+      else setMessages([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [selectedRobotId, activeTab, startDate, endDate]);
 
   useEffect(() => {
-    if (!selectedRobotId) return;
-
-    const loadData = async () => {
-      setLoading(true);
-      try {
-        const endpoint =
-          activeTab === 'SUMMARY'
-            ? `/api/robot/${selectedRobotId}/abstract/0/20`
-            : `/api/robot/${selectedRobotId}/message/0/20`;
-        const result = await fetchApi(endpoint);
-        if ((result.code === 0 || result.code === 200) && result.data) {
-          if (activeTab === 'SUMMARY') {
-            setAbstracts(result.data.abstractList || []);
-          } else {
-            setMessages(result.data.messageList || []);
-          }
-        }
-      } catch (e) {
-        console.error('Failed to load memory data', e);
-        if (activeTab === 'SUMMARY') {
-          setAbstracts([]);
-        } else {
-          setMessages([]);
-        }
-      } finally {
-        setLoading(false);
-      }
-    };
-
     loadData();
-  }, [selectedRobotId, activeTab]);
+  }, [selectedRobotId, activeTab]); // Only auto-fetch when robot or tab changes. Date change needs explicit filter tap.
 
   const currentRobot = robots.find(r => r.robotCode === selectedRobotId);
 
@@ -148,6 +169,76 @@ export default function MemoryScreen() {
             <Text style={[styles.tabText, activeTab === 'DIALOGUE' && styles.tabTextActive]}>消息</Text>
           </Pressable>
         </View>
+      </View>
+
+      <View style={styles.filterRow}>
+        {Platform.OS === 'web' ? (
+          <TextInput
+            style={styles.filterBtnDate}
+            placeholder="起 YYYY-MM-DD"
+            placeholderTextColor="#475569"
+            value={startDate ? startDate.toISOString().split('T')[0] : ''}
+            onChangeText={(text) => {
+              if (text.length === 10 && !isNaN(new Date(text).getTime())) setStartDate(new Date(text));
+              else if (text.length === 0) setStartDate(null);
+            }}
+          />
+        ) : (
+          <Pressable style={styles.filterBtnDate} onPress={() => setShowStartPicker(true)}>
+            <Text style={styles.filterBtnText}>{startDate ? startDate.toISOString().split('T')[0] : '区间起始时标'}</Text>
+          </Pressable>
+        )}
+        {showStartPicker && Platform.OS !== 'web' && (
+          <DateTimePicker
+            value={startDate || new Date()}
+            mode="date"
+            display="default"
+            onChange={(event, date) => {
+              setShowStartPicker(Platform.OS === 'ios');
+              if (event.type === 'set' && date) setStartDate(date);
+            }}
+          />
+        )}
+
+        <Text style={styles.filterDash}>~</Text>
+
+        {Platform.OS === 'web' ? (
+          <TextInput
+            style={styles.filterBtnDate}
+            placeholder="止 YYYY-MM-DD"
+            placeholderTextColor="#475569"
+            value={endDate ? endDate.toISOString().split('T')[0] : ''}
+            onChangeText={(text) => {
+              if (text.length === 10 && !isNaN(new Date(text).getTime())) setEndDate(new Date(text));
+              else if (text.length === 0) setEndDate(null);
+            }}
+          />
+        ) : (
+          <Pressable style={styles.filterBtnDate} onPress={() => setShowEndPicker(true)}>
+            <Text style={styles.filterBtnText}>{endDate ? endDate.toISOString().split('T')[0] : '区间界定界标'}</Text>
+          </Pressable>
+        )}
+        {showEndPicker && Platform.OS !== 'web' && (
+          <DateTimePicker
+            value={endDate || new Date()}
+            mode="date"
+            display="default"
+            onChange={(event, date) => {
+              setShowEndPicker(Platform.OS === 'ios');
+              if (event.type === 'set' && date) setEndDate(date);
+            }}
+          />
+        )}
+
+        {(startDate || endDate) && (
+          <Pressable style={styles.clearBtn} onPress={() => { setStartDate(null); setEndDate(null); }}>
+             <FontAwesome name="times-circle" size={14} color="#94a3b8" />
+          </Pressable>
+        )}
+
+        <Pressable style={styles.filterBtn} onPress={handleFilter}>
+          <FontAwesome name="filter" size={14} color="#011e41" />
+        </Pressable>
       </View>
 
       {activeTab === 'SUMMARY' ? renderSummary() : renderDialogue()}
@@ -232,6 +323,46 @@ const styles = StyleSheet.create({
   tabTextActive: {
     color: '#011e41',
     fontWeight: 'bold',
+  },
+  filterRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    marginTop: 10,
+    backgroundColor: 'transparent',
+  },
+  filterBtnDate: {
+    flex: 1,
+    flexShrink: 1,
+    minWidth: 0,
+    height: 36,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 229, 255, 0.3)',
+    borderRadius: 6,
+    paddingHorizontal: 10,
+    backgroundColor: 'rgba(5, 11, 20, 0.4)',
+    justifyContent: 'center',
+  },
+  filterBtnText: {
+    color: '#00e5ff',
+    fontSize: 12,
+  },
+  clearBtn: {
+    paddingHorizontal: 8,
+    justifyContent: 'center',
+  },
+  filterDash: {
+    color: '#475569',
+    marginHorizontal: 8,
+  },
+  filterBtn: {
+    width: 36,
+    height: 36,
+    backgroundColor: '#00e5ff',
+    borderRadius: 6,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginLeft: 10,
   },
   scrollContent: { padding: 20, paddingBottom: 100 },
   abstractCard: {

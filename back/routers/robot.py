@@ -4,6 +4,7 @@ routers/robot.py
 """
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
+from typing import Optional
 
 from deps import get_db, get_current_user_id
 from models.user import User
@@ -243,6 +244,8 @@ def get_messages(
     robotID: str,
     cursor: int,
     limit: int,
+    startTime: Optional[int] = None,
+    endTime: Optional[int] = None,
     db: Session = Depends(get_db),
     current_user_id: str = Depends(get_current_user_id),
 ):
@@ -259,6 +262,11 @@ def get_messages(
     )
     if cursor != 0:
         query = query.filter(Message.created_at < cursor)
+        
+    if startTime is not None:
+        query = query.filter(Message.created_at >= startTime)
+    if endTime is not None:
+        query = query.filter(Message.created_at <= endTime)
 
     messages = (
         query.order_by(Message.created_at.desc())
@@ -293,6 +301,8 @@ def get_abstracts(
     robotID: str,
     cursor: int,
     limit: int,
+    startTime: Optional[int] = None,
+    endTime: Optional[int] = None,
     db: Session = Depends(get_db),
     current_user_id: str = Depends(get_current_user_id),
 ):
@@ -306,6 +316,11 @@ def get_abstracts(
     )
     if cursor != 0:
         query = query.filter(Summary.created_at < cursor)
+
+    if startTime is not None:
+        query = query.filter(Summary.created_at >= startTime)
+    if endTime is not None:
+        query = query.filter(Summary.created_at <= endTime)
 
     summaries = (
         query.order_by(Summary.created_at.desc())
