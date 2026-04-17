@@ -5,7 +5,6 @@ import { Text, View } from '@/components/Themed';
 import { FontAwesome } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import ChangeToneModal from '@/components/robot/ChangeToneModal';
-import ChangePersonalityModal from '@/components/robot/ChangePersonalityModal';
 import MbtiOpposingBar from '@/components/robot/MbtiOpposingBar';
 import Big5RadarChart from '@/components/robot/Big5RadarChart';
 import { useRobots } from '@/context/RobotContext';
@@ -48,7 +47,6 @@ export default function RobotDetailScreen() {
   const [robotName, setRobotName] = useState<string>(currentRobot?.robotName || '机器人');
   const [isEditingName, setIsEditingName] = useState(false);
   const [toneModalVisible, setToneModalVisible] = useState(false);
-  const [personalityModalVisible, setPersonalityModalVisible] = useState(false);
 
   useEffect(() => {
     if (currentRobot?.robotName) {
@@ -173,16 +171,16 @@ export default function RobotDetailScreen() {
             </LinearGradient>
           </Pressable>
 
-          <Pressable onPress={() => setPersonalityModalVisible(true)}>
+          <View>
             <LinearGradient colors={['#003d79', '#011e41']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.actionButton}>
               <FontAwesome name="user-secret" size={20} color="#00e5ff" />
               <View style={styles.actionTextContainer}>
                 <Text style={styles.actionLabel}>初始人格</Text>
                 <Text style={styles.actionValue}>{personalityName}</Text>
               </View>
-              <FontAwesome name="angle-right" size={24} color="#475569" />
+              <FontAwesome name="lock" size={18} color="#475569" />
             </LinearGradient>
-          </Pressable>
+          </View>
 
           <Pressable onPress={() => router.push({ pathname: '/(tabs)/memory', params: { targetRobot: robotID } })}>
             <LinearGradient colors={['#003d79', '#011e41']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.actionButton}>
@@ -227,17 +225,6 @@ export default function RobotDetailScreen() {
         currentToneID={toneID}
         onClose={() => setToneModalVisible(false)}
         onSelect={handleToneSelect}
-      />
-      <ChangePersonalityModal
-        visible={personalityModalVisible}
-        robotID={robotID}
-        currentPersonalityID={personalityID}
-        onClose={() => setPersonalityModalVisible(false)}
-        onSelect={(nextID, nextName) => {
-          setPersonalityID(nextID);
-          setPersonalityName(nextName);
-          setPersonalityModalVisible(false);
-        }}
       />
     </View>
   );

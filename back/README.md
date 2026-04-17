@@ -107,10 +107,9 @@ back/
 机器人数据接口，需要 token，并按管理员或绑定关系校验权限：
 
 - `GET /api/robot/{robotID}/personality`
-- `PUT /api/robot/{robotID}/personality/change`
 - `PUT /api/robot/{robotID}/tone/change`
-- `GET /api/robot/{robotID}/message/{cursor}/{limit}`
-- `GET /api/robot/{robotID}/abstract/{cursor}/{limit}`
+- `GET /api/robot/{robotID}/message?cursor=0&limit=20`
+- `GET /api/robot/{robotID}/abstract?cursor=0&limit=20`
 - `GET /api/robot/{robotID}/userportrait`
 - `GET /api/robot/{robotID}/userportrait/{portraitID}`
 - `GET /api/robot/{robotID}/familyportrait`
@@ -126,7 +125,7 @@ back/
 
 - 管理员调用 `GET /api/user/{userID}/robot` 时返回所有未删除机器人。
 - 普通用户调用 `GET /api/user/{userID}/robot` 时只返回自己的绑定机器人。
-- 管理员可以读取和修改任意机器人的人格、音色、消息、摘要、用户画像和家庭画像。
+- 管理员可以读取任意机器人的人格、音色、消息、摘要、用户画像和家庭画像，并可以修改音色。
 - 普通用户访问机器人数据接口时，必须在 `user_robot_bindings` 中存在未删除绑定关系。
 - 普通用户没有绑定对应机器人时，机器人数据接口返回 `code=403`、`data=null`、`msg="权限不足：当前用户未绑定该机器人"`。
 - `tone`、`initPersonality`、`skill` 三个选项列表接口不校验绑定关系，保证用户绑定前可以拉取候选项。

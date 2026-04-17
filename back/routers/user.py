@@ -94,32 +94,31 @@ def bind_robot(
     if existing:
         raise HTTPException(status_code=400, detail="该机器人已绑定")
 
+    current_personality = db.query(RobotPersonalityRecord).filter(
+        RobotPersonalityRecord.robot_id == body.robotID,
+        RobotPersonalityRecord.is_current == 1,
+        RobotPersonalityRecord.deleted_at.is_(None),
+    ).first()
+
     binding = UserRobotBinding(
         binding_id=new_uuid(),
         user_id=body.userID,
         robot_id=body.robotID,
         robot_alias=body.robotName or "",
-        init_personality_id=body.personalityID,
+        init_personality_id=current_personality.preset_personality_id if current_personality else body.personalityID,
         bind_tone_id=body.toneID,
         created_at=ts,
         updated_at=ts,
     )
     db.add(binding)
 
-    # 如果指定了初始人格，为机器人创建人格记录
-    if body.personalityID is not None:
+    # 只在机器人尚未有人格时按绑定参数初始化；绑定后不再覆盖人格。
+    if body.personalityID is not None and current_personality is None:
         preset = db.query(PersonalityPreset).filter(
             PersonalityPreset.personality_id == body.personalityID,
             PersonalityPreset.deleted_at.is_(None),
         ).first()
         if preset:
-            # 先将已有 current 人格置为历史
-            db.query(RobotPersonalityRecord).filter(
-                RobotPersonalityRecord.robot_id == body.robotID,
-                RobotPersonalityRecord.is_current == 1,
-                RobotPersonalityRecord.deleted_at.is_(None),
-            ).update({"is_current": 0, "updated_at": ts})
-
             record = RobotPersonalityRecord(
                 personality_record_id=new_uuid(),
                 robot_id=body.robotID,

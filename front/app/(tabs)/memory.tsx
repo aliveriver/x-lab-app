@@ -55,7 +55,7 @@ export default function MemoryScreen() {
     if (!selectedRobotId) return;
     setLoading(true);
     try {
-      let params = [];
+      let params = ['cursor=0', 'limit=20'];
       if (startDate) {
         params.push(`startTime=${startDate.getTime()}`);
       }
@@ -68,8 +68,8 @@ export default function MemoryScreen() {
 
       const endpoint =
         activeTab === 'SUMMARY'
-          ? `/api/robot/${selectedRobotId}/abstract/0/20${qStr}`
-          : `/api/robot/${selectedRobotId}/message/0/20${qStr}`;
+          ? `/api/robot/${selectedRobotId}/abstract${qStr}`
+          : `/api/robot/${selectedRobotId}/message${qStr}`;
       
       const result = await fetchApi(endpoint);
       if ((result.code === 0 || result.code === 200) && result.data) {

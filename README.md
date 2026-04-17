@@ -120,9 +120,8 @@ x-lab-app/
 机器人数据能力。这些接口需要 token，并按 `users.is_admin` 和用户绑定关系控制权限：
 
 - 机器人当前人格：`GET /api/robot/{robotID}/personality`
-- 修改机器人人格：`PUT /api/robot/{robotID}/personality/change`
 - 修改机器人音色：`PUT /api/robot/{robotID}/tone/change`
-- 消息和摘要：`GET /api/robot/{robotID}/message/{cursor}/{limit}`、`GET /api/robot/{robotID}/abstract/{cursor}/{limit}`
+- 消息和摘要：`GET /api/robot/{robotID}/message?cursor=0&limit=20`、`GET /api/robot/{robotID}/abstract?cursor=0&limit=20`
 - 用户画像和家庭画像：`GET /api/robot/{robotID}/userportrait`、`GET /api/robot/{robotID}/userportrait/{portraitID}`、`GET /api/robot/{robotID}/familyportrait`
 
 ## 权限规则
@@ -130,7 +129,7 @@ x-lab-app/
 - token 里包含当前用户 `userID`。
 - 管理员标识存储在 `users.is_admin` 字段，`1` 表示管理员，`0` 表示普通用户。
 - 管理员调用 `GET /api/user/{userID}/robot` 时返回所有未删除机器人；普通用户只返回自己的绑定机器人。
-- 管理员可以读取和修改任意机器人的人格、音色、消息、摘要、用户画像和家庭画像。
+- 管理员可以读取任意机器人的人格、音色、消息、摘要、用户画像和家庭画像，并可以修改音色。
 - 普通用户访问机器人数据接口时，必须已绑定对应 `robotID`。
 - 普通用户未绑定对应机器人时，接口返回统一业务响应：`code=403`、`data=null`、`msg="权限不足：当前用户未绑定该机器人"`。
 - `tone`、`initPersonality`、`skill` 三个选项列表接口不校验绑定关系，便于绑定前拉取候选项。

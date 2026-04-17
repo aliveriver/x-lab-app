@@ -96,7 +96,7 @@ front/
 - 机器人当前人格：`GET /api/robot/{robotID}/personality`
 - 音色列表和修改：`GET /api/robot/{robotID}/tone`、`PUT /api/robot/{robotID}/tone/change`
 - 初始人格列表：`GET /api/robot/{robotID}/initPersonality`
-- 消息和摘要：`GET /api/robot/{robotID}/message/{cursor}/{limit}`、`GET /api/robot/{robotID}/abstract/{cursor}/{limit}`
+- 消息和摘要：`GET /api/robot/{robotID}/message?cursor=0&limit=20`、`GET /api/robot/{robotID}/abstract?cursor=0&limit=20`
 - 用户画像和家庭画像：`GET /api/robot/{robotID}/userportrait`、`GET /api/robot/{robotID}/userportrait/{portraitID}`、`GET /api/robot/{robotID}/familyportrait`
 
 管理员登录后仍使用机器人列表页；后端会根据 token 判断 `isAdmin`，管理员可以在同一列表中看到所有机器人。

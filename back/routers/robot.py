@@ -2,7 +2,7 @@
 routers/robot.py
 机器人相关路由：人格、消息、摘要、音色、画像、技能
 """
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from typing import Optional
 
@@ -20,7 +20,6 @@ from models.family_portrait import FamilyPortrait
 from schemas.common import R
 from schemas.robot import (
     PersonalityData, MBTIData, Big5Data,
-    ChangePersonalityRequest,
     ChangeToneRequest,
     ToneItem, ToneListData,
     PersonalityPresetItem, PersonalityListData,
@@ -124,10 +123,9 @@ def get_personality(
     return R.ok(data=_build_personality_data(record))
 
 
-@router.put("/{robotID}/personality/change", response_model=R, summary="修改机器人人格")
+@router.put("/{robotID}/personality/change", response_model=R, summary="修改机器人人格（已禁用）")
 def change_personality(
     robotID: str,
-    body: ChangePersonalityRequest,
     db: Session = Depends(get_db),
     current_user_id: str = Depends(get_current_user_id),
 ):
@@ -136,36 +134,7 @@ def change_personality(
     """
     if _get_robot_for_user_or_none(robotID, current_user_id, db) is None:
         return _permission_denied_response()
-    ts = now_ms()
-
-    # 旧人格设为历史
-    db.query(RobotPersonalityRecord).filter(
-        RobotPersonalityRecord.robot_id == robotID,
-        RobotPersonalityRecord.is_current == 1,
-        RobotPersonalityRecord.deleted_at.is_(None),
-    ).update({"is_current": 0, "updated_at": ts})
-
-    # 新建当前人格
-    record = RobotPersonalityRecord(
-        personality_record_id=new_uuid(),
-        robot_id=robotID,
-        source="manual",
-        is_current=1,
-        mbti_e=body.mbti.E, mbti_i=body.mbti.I,
-        mbti_s=body.mbti.S, mbti_n=body.mbti.N,
-        mbti_t=body.mbti.T, mbti_f=body.mbti.F,
-        mbti_j=body.mbti.J, mbti_p=body.mbti.P,
-        big5_neuroticism=body.big5.neuroticism,
-        big5_extraversion=body.big5.extraversion,
-        big5_openness=body.big5.openness,
-        big5_agreeableness=body.big5.agreeableness,
-        big5_conscientiousness=body.big5.conscientiousness,
-        created_at=ts,
-        updated_at=ts,
-    )
-    db.add(record)
-    db.commit()
-    return R.ok()
+    return R.fail(code=403, msg="机器人绑定后不允许修改人格")
 
 
 # ---- 音色接口 ----
@@ -239,11 +208,11 @@ def list_skills(
 
 # ---- 消息分页 ----
 
-@router.get("/{robotID}/message/{cursor}/{limit}", response_model=R[MessageListData], summary="分页获取消息记录")
+@router.get("/{robotID}/message", response_model=R[MessageListData], summary="分页获取消息记录")
 def get_messages(
     robotID: str,
-    cursor: int,
-    limit: int,
+    cursor: int = Query(..., ge=0),
+    limit: int = Query(..., ge=1),
     startTime: Optional[int] = None,
     endTime: Optional[int] = None,
     db: Session = Depends(get_db),
@@ -296,11 +265,11 @@ def get_messages(
 
 # ---- 摘要分页 ----
 
-@router.get("/{robotID}/abstract/{cursor}/{limit}", response_model=R[AbstractListData], summary="分页获取摘要")
+@router.get("/{robotID}/abstract", response_model=R[AbstractListData], summary="分页获取摘要")
 def get_abstracts(
     robotID: str,
-    cursor: int,
-    limit: int,
+    cursor: int = Query(..., ge=0),
+    limit: int = Query(..., ge=1),
     startTime: Optional[int] = None,
     endTime: Optional[int] = None,
     db: Session = Depends(get_db),
