@@ -12,10 +12,16 @@ sys.path.insert(0, os.path.dirname(__file__))
 
 from database import SessionLocal, create_all_tables
 from models.tone import Tone
-from models.skill import Skill
+from models.skill import Skill,RobotSkill
 from models.personality import PersonalityPreset
 from models.robot import Robot
 from models.user import User
+from models.message import Message
+# 原有的导入...
+from models.personality import PersonalityPreset, RobotPersonalityRecord # 新增 RobotPersonalityRecord
+from models.summary import Summary
+from models.portrait import UserPortrait
+from models.binding import UserRobotBinding
 from utils import now_ms, new_uuid
 
 create_all_tables()
@@ -140,14 +146,283 @@ def seed_admin_user():
         user.user_name = admin_name
     user.updated_at = ts
     print(f"promoted existing user to admin: {admin_phone}")
+def seed_robot_personality():
+    """初始化机器人的当前人格记录"""
+    robot_id = "ROBOT-DEMO-001"
+    
+    # 检查是否已经有人格记录
+    existing = db.query(RobotPersonalityRecord).filter(
+        RobotPersonalityRecord.robot_id == robot_id,
+        RobotPersonalityRecord.is_current == 1
+    ).first()
+    
+    if existing:
+        print(f"机器人 {robot_id} 的人格记录已存在，跳过")
+        return
+
+    # 从系统预设中取第一条（比如“温暖陪伴型”）作为机器人的初始人格
+    preset = db.query(PersonalityPreset).first()
+    if not preset:
+        print("未找到预设人格，无法为机器人初始化人格。请确保先执行 seed_personalities")
+        return
+
+    # 完整继承预设人格的各项数值
+    robot_personality = RobotPersonalityRecord(
+        personality_record_id=new_uuid(),
+        robot_id=robot_id,
+        source="preset",
+        preset_personality_id=preset.personality_id,
+        is_current=1,
+        mbti_e=preset.mbti_e, mbti_i=preset.mbti_i,
+        mbti_s=preset.mbti_s, mbti_n=preset.mbti_n,
+        mbti_t=preset.mbti_t, mbti_f=preset.mbti_f,
+        mbti_j=preset.mbti_j, mbti_p=preset.mbti_p,
+        big5_neuroticism=preset.big5_neuroticism,
+        big5_extraversion=preset.big5_extraversion,
+        big5_openness=preset.big5_openness,
+        big5_agreeableness=preset.big5_agreeableness,
+        big5_conscientiousness=preset.big5_conscientiousness,
+        created_at=ts,
+        updated_at=ts
+    )
+    db.add(robot_personality)
+    print(f"写入机器人 {robot_id} 的人格记录 (继承自预设: {preset.personality_name})")
 
 
+def seed_robot_skills():
+    """初始化机器人的技能关联"""
+    robot_id = "ROBOT-DEMO-001"
+    
+    # 检查是否已经分配过技能
+    existing_skills = db.query(RobotSkill).filter(RobotSkill.robot_id == robot_id).count()
+    if existing_skills > 0:
+        print(f"机器人 {robot_id} 已分配 {existing_skills} 个技能，跳过")
+        return
+
+    # 获取所有基础技能
+    all_skills = db.query(Skill).all()
+    if not all_skills:
+        print("基础技能库为空，无法为机器人分配技能。请确保先执行 seed_skills")
+        return
+
+    # 给该机器人分配前 3 个基础技能作为演示
+    robot_skills_to_add = []
+    for skill in all_skills[:3]:
+        robot_skills_to_add.append(
+            RobotSkill(
+                robot_skill_id=new_uuid(),
+                robot_id=robot_id,
+                skill_id=skill.skill_id,
+                enabled=1,
+                created_at=ts,
+                updated_at=ts
+            )
+        )
+    
+    db.add_all(robot_skills_to_add)
+    print(f"为机器人 {robot_id} 绑定了 {len(robot_skills_to_add)} 个初始技能")
+def seed_messages():
+    """
+    初始化测试用的聊天记录（播种消息）
+    """
+    # 1. 检查是否已经有消息了。如果有，说明不是空库，直接跳过，防止每次启动都重复插入
+    existing_msg = db.query(Message).filter(Message.deleted_at.is_(None)).first()
+    if existing_msg:
+        print("messages already exist, skip.")
+        return
+
+    # 2. 找一个用户和一个机器人来作为这场对话的主角
+    user = db.query(User).filter(User.deleted_at.is_(None)).first()
+    robot = db.query(Robot).filter(Robot.deleted_at.is_(None)).first()
+
+    if not user or not robot:
+        print("no user or robot found to attach messages, please seed user/robot first.")
+        return
+
+    # 3. 准备当前时间戳，并制造一点时间差（让消息有先后顺序）
+    ts = now_ms()
+    
+    print("seeding default messages...")
+
+    # 4. 捏造一段模拟对话
+    mock_messages = [
+        # 第一句：用户发出的问候
+        Message(
+            message_id=new_uuid(),
+            robot_id=robot.robot_id,
+            user_id=user.user_id,
+            speaker_type="user",         # 说话人类型是用户
+            speaker_id=user.user_id,     # 具体的说话人是这个用户
+            content="你好，小助手！初次见面。",
+            message_type="text",
+            created_at=ts - 10000,       # 10秒前发送
+            updated_at=ts - 10000,
+        ),
+        # 第二句：机器人的回复
+        Message(
+            message_id=new_uuid(),
+            robot_id=robot.robot_id,
+            user_id=user.user_id,        # 标明这条消息属于哪个用户的聊天窗口
+            speaker_type="robot",        # 说话人类型是机器人
+            speaker_id=robot.robot_id,   # 具体的说话人是这台机器
+            content="你好呀！我是你的专属AI机器人，已经准备好为你服务了。今天想聊点什么呢？",
+            message_type="text",
+            created_at=ts - 5000,        # 5秒前发送
+            updated_at=ts - 5000,
+        ),
+        # 第三句：一条系统提示消息（比如用来提示绑定成功）
+        Message(
+            message_id=new_uuid(),
+            robot_id=robot.robot_id,
+            user_id=user.user_id,
+            speaker_type="system",       # 说话人类型是系统
+            speaker_id="system",
+            content="【系统提示】您已成功绑定该机器人设备，现在可以开始聊天了。",
+            message_type="text",
+            created_at=ts,               # 现在发送
+            updated_at=ts,
+        )
+    ]
+
+    # 5. 批量添加到数据库并提交保存
+    db.add_all(mock_messages)
+    db.commit()
+    print(f"successfully seeded {len(mock_messages)} messages.")
+def seed_summaries():
+    """初始化测试用的对话摘要"""
+    # 1. 检查是否已有摘要
+    if db.query(Summary).count() > 0:
+        print("摘要数据已存在，跳过")
+        return
+
+    # 2. 找到测试用户和机器人
+    user = db.query(User).filter(User.deleted_at.is_(None)).first()
+    robot = db.query(Robot).filter(Robot.deleted_at.is_(None)).first()
+
+    if not user or not robot:
+        print("未找到用户或机器人，无法生成摘要，请先执行前面的 seed 函数。")
+        return
+
+    # 3. 获取他们之间的历史消息，用来作为摘要的起止点
+    messages = db.query(Message).filter(
+        Message.robot_id == robot.robot_id,
+        Message.user_id == user.user_id,
+        Message.deleted_at.is_(None)
+    ).order_by(Message.created_at.asc()).all()
+
+    start_msg_id = messages[0].message_id if len(messages) > 0 else None
+    end_msg_id = messages[-1].message_id if len(messages) > 1 else start_msg_id
+
+    # 4. 创建一条模拟的对话摘要
+    mock_summary = Summary(
+        summary_id=new_uuid(),
+        robot_id=robot.robot_id,
+        user_id=user.user_id,
+        strategy="manual",  # 模拟手动触发的摘要
+        start_message_id=start_msg_id,
+        end_message_id=end_msg_id,
+        content="【模拟摘要】用户初次绑定了AI小助手，双方进行了简短、友好的互相问候。",
+        created_at=ts,
+        updated_at=ts
+    )
+
+    db.add(mock_summary)
+    print("写入 1 条对话摘要数据")
+def seed_user_portrait():
+    """初始化测试用的用户画像数据"""
+    # 1. 检查是否已经存在画像记录
+    if db.query(UserPortrait).count() > 0:
+        print("用户画像数据已存在，跳过")
+        return
+
+    # 2. 获取测试用的机器人ID（画像是机器人在与用户交流过程中对其建立的认知，所以关联 robot_id）
+    robot = db.query(Robot).filter(Robot.deleted_at.is_(None)).first()
+    if not robot:
+        print("未找到测试机器人，无法生成用户画像。请确保先执行 seed_robot")
+        return
+
+    # 3. 构造一份模拟的用户画像（例如：一个INTP性格的年轻程序员）
+    mock_portrait = UserPortrait(
+        portrait_id=new_uuid(),
+        robot_id=robot.robot_id,
+        avatar="https://api.dicebear.com/7.x/avataaars/svg?seed=Felix", # 随便给个随机头像URL
+        user_name="测试体验官",
+        age=25,
+        profession="软件工程师",
+        education_level="本科",
+        family_ties="单身，独自居住在公寓，养了一只猫",
+        dialogue_style="喜欢直接、高效的沟通方式，偏受理性的分析，偶尔带有冷幽默。",
+        
+        # MBTI 设定：INTP (内向I, 直觉N, 思考T, 感知P)
+        mbti_e=20, mbti_i=80,  # I 偏好
+        mbti_s=30, mbti_n=70,  # N 偏好
+        mbti_t=85, mbti_f=15,  # T 偏好
+        mbti_j=25, mbti_p=75,  # P 偏好
+        
+        # 大五人格设定
+        big5_neuroticism=40,       # 神经质（情绪稳定性）: 偏稳重
+        big5_extraversion=30,      # 外向性: 偏内向
+        big5_openness=85,          # 开放性: 充满好奇心，乐于接受新事物
+        big5_agreeableness=55,     # 宜人性: 中等偏上，讲道理
+        big5_conscientiousness=70, # 尽责性: 工作认真，比较自律
+        
+        created_at=ts,
+        updated_at=ts
+    )
+
+    db.add(mock_portrait)
+    print("写入 1 条用户画像数据")
+def seed_binding():
+    """初始化用户与机器人的绑定关系"""
+    # 1. 检查是否已经存在绑定关系
+    if db.query(UserRobotBinding).count() > 0:
+        print("绑定关系数据已存在，跳过")
+        return
+
+    # 2. 找到需要绑定的用户和机器人
+    user = db.query(User).filter(User.deleted_at.is_(None)).first()
+    robot = db.query(Robot).filter(Robot.deleted_at.is_(None)).first()
+
+    if not user or not robot:
+        print("未找到用户或机器人，无法建立绑定关系。请确保先执行 seed_robot 和 seed_admin_user")
+        return
+
+    # 3. 找到初始人格和音色（可选，但这里为了数据完整性我们查出来填进去）
+    preset_personality = db.query(PersonalityPreset).first()
+    preset_tone = db.query(Tone).first()
+
+    personality_id = preset_personality.personality_id if preset_personality else None
+    tone_id = preset_tone.tone_id if preset_tone else None
+
+    # 4. 创建绑定记录
+    mock_binding = UserRobotBinding(
+        binding_id=new_uuid(),
+        user_id=user.user_id,
+        robot_id=robot.robot_id,
+        robot_alias="我的专属小星",  # 用户给机器人起的自定义昵称
+        init_personality_id=personality_id,
+        bind_tone_id=tone_id,
+        created_at=ts,
+        updated_at=ts
+    )
+
+    db.add(mock_binding)
+    print(f"写入 1 条绑定关系数据：User({user.user_name}) <-> Robot({robot.robot_name})")
 if __name__ == "__main__":
+    # 1. 基础实体数据（先有鸡，才能下蛋）
     seed_tones()
     seed_skills()
     seed_personalities()
     seed_robot()
     seed_admin_user()
+    db.commit() 
+    seed_robot_personality()
+    seed_robot_skills()
+    seed_binding()
+    db.commit() 
+    seed_messages()
+    seed_summaries() 
+    seed_user_portrait()
     db.commit()
     db.close()
     print("Seed 完成！")

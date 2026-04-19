@@ -135,3 +135,23 @@ back/
 ```powershell
 .\.venv\Scripts\python.exe -m compileall -q main.py database.py deps.py utils.py seed.py routers schemas models
 ```
+
+
+
+## lj 新添加
+
+加入了发送消息接口，等待机器人发送消息，同时在seed.py中加入模拟数据
+
+新增了定时任务scheduler.py和一个接口来启动两个后台任务，
+加入两个新的方法，一个用来定期更新用户画像和总结，一个用来生成机器人画像
+
+并且在utils 加入讲个方法用来调用api，生成总结、用户画像、人格数据。目前只做固定返回，并没有调用
+
+在main.py中添加了定时任务，并启动了两个任务
+
+添加def get_fixed_uuid():  #方便测试加入确定id
+
+加入 test_api.py 测试接口测试通过
+除定时任务外（暂时没测试），其他接口测试通过
+在用户画像数据库表中加入了uuid字段，用来唯一标识用户画像
+在get_messages得过滤器中加入了uuid字段，用来获取指定用户的聊天记录，防止用户获取到其他用户的聊天记录

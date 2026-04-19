@@ -158,3 +158,11 @@ class FamilyPortraitDetail(BaseModel):
 
 class FamilyPortraitData(BaseModel):
     familyPortrait: FamilyPortraitDetail
+
+class ReceiveMessageRequest(BaseModel):
+    """用于接收新消息的数据校验模型"""
+    userID: Optional[str] = None      # 对应的用户ID（如果是系统消息可以为空）
+    speakerType: str                  # 必须填：'user' | 'robot' | 'system'
+    speakerID: str                    # 必须填：说话人的具体ID
+    content: str                      # 必须填：消息内容
+    messageType: str = "text"         # 选填：消息类型，默认是纯文本

@@ -11,6 +11,7 @@ class UserPortrait(Base):
 
     portrait_id: Mapped[str] = mapped_column(String(36), primary_key=True, comment="画像UUID，接口 portraitID")
     robot_id: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    user_id: Mapped[str] = mapped_column(String(36), nullable=False, index=True, default="") # 用户UUID
     avatar: Mapped[str] = mapped_column(String(512), nullable=False, default="")
     user_name: Mapped[str] = mapped_column(String(64), nullable=False, default="")
     age: Mapped[int | None] = mapped_column(SmallInteger, nullable=True)
