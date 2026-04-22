@@ -20,9 +20,9 @@ def evolution_job():
         print("[AI定时任务] 2/2 开始推演机器人性格变化...")
         update_robot_personality(db)
         
-        print("[AI定时任务] ✅ 演化全部完成！\n")
+        print("[AI定时任务] [OK] 演化全部完成！\n")
     except Exception as e:
-        print(f"[AI定时任务] ❌ 发生错误: {e}")
+        print(f"[AI定时任务] [ERROR] 发生错误: {e}")
         traceback.print_exc()
         db.rollback() # 出错了就回滚数据库
     finally:
@@ -38,9 +38,9 @@ def init_scheduler():
         replace_existing=True
     )
     scheduler.start()
-    print("[定时任务] ✅ 已启动，每24小时将自动执行一次演化任务")
+    print("[定时任务] [STARTED] 已启动，每24小时将自动执行一次演化任务")
 
 def shutdown_scheduler():
     """关闭定时任务"""
     scheduler.shutdown()
-    print("[定时任务] 💤 已安全停止")
+    print("[定时任务] [STOPPED] 已安全停止")
