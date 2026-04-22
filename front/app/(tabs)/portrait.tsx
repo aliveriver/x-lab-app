@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, Pressable, ScrollView, Modal } from 'react-native';
+import { StyleSheet, Pressable, ScrollView, Modal, TextInput } from 'react-native';
 import { Text, View } from '@/components/Themed';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useRobots } from '@/context/RobotContext';
@@ -25,6 +25,7 @@ export default function PortraitScreen() {
   const { robots } = useRobots();
   const [selectedRobotId, setSelectedRobotId] = useState<string | null>(null);
   const [pickerVisible, setPickerVisible] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
   const [familyPortrait, setFamilyPortrait] = useState<FamilyPortrait | null>(null);
   const [userPortraits, setUserPortraits] = useState<UserPortrait[]>([]);
 
@@ -137,23 +138,44 @@ export default function PortraitScreen() {
 
       <Modal visible={pickerVisible} transparent animationType="fade">
         <Pressable style={styles.modalOverlay} onPress={() => setPickerVisible(false)}>
-          <View style={styles.modalContent}>
+          <Pressable style={styles.modalContent} onPress={(e) => e.stopPropagation()}>
             <Text style={styles.modalTitle}>选择机器人</Text>
-            {robots.map(r => (
-              <Pressable
-                key={r.robotCode}
-                style={[styles.pickerItem, selectedRobotId === r.robotCode && styles.pickerItemActive]}
-                onPress={() => {
-                  setSelectedRobotId(r.robotCode);
-                  setPickerVisible(false);
-                }}
-              >
-                <Text style={[styles.pickerItemText, selectedRobotId === r.robotCode && styles.pickerItemTextActive]}>
-                  {r.robotName}
-                </Text>
-              </Pressable>
-            ))}
-          </View>
+            <View style={styles.searchContainer}>
+              <FontAwesome name="search" size={16} color="#00e5ff" style={styles.searchIcon} />
+              <TextInput
+                style={styles.searchInput}
+                placeholder="搜索名称或UUID..."
+                placeholderTextColor="#475569"
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+              />
+              {searchQuery.length > 0 && (
+                <Pressable onPress={() => setSearchQuery('')} style={styles.clearIcon}>
+                  <FontAwesome name="times-circle" size={16} color="#475569" />
+                </Pressable>
+              )}
+            </View>
+            <ScrollView style={styles.pickerList}>
+              {robots.filter(r => 
+                r.robotName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                r.robotCode.toLowerCase().includes(searchQuery.toLowerCase())
+              ).map(r => (
+                <Pressable
+                  key={r.robotCode}
+                  style={[styles.pickerItem, selectedRobotId === r.robotCode && styles.pickerItemActive]}
+                  onPress={() => {
+                    setSelectedRobotId(r.robotCode);
+                    setPickerVisible(false);
+                    setSearchQuery('');
+                  }}
+                >
+                  <Text style={[styles.pickerItemText, selectedRobotId === r.robotCode && styles.pickerItemTextActive]}>
+                    {r.robotName}
+                  </Text>
+                </Pressable>
+              ))}
+            </ScrollView>
+          </Pressable>
         </Pressable>
       </Modal>
     </View>
@@ -237,4 +259,24 @@ const styles = StyleSheet.create({
   pickerItemActive: { backgroundColor: 'rgba(0, 229, 255, 0.1)' },
   pickerItemText: { color: '#94a3b8', textAlign: 'center', fontSize: 16 },
   pickerItemTextActive: { color: '#00e5ff', fontWeight: 'bold' },
+  searchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 10,
+    backgroundColor: 'rgba(5, 11, 20, 0.6)',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#1a5c9e',
+    paddingHorizontal: 10,
+  },
+  searchIcon: { marginRight: 8 },
+  searchInput: {
+    flex: 1,
+    color: '#ffffff',
+    fontSize: 14,
+    paddingVertical: 8,
+  },
+  clearIcon: { padding: 5 },
+  pickerList: { maxHeight: 300 },
+  profileSection: { marginBottom: 25 },
 });
