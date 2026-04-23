@@ -38,6 +38,9 @@ def seed_tones():
         Tone(tone_name="磁性男声", provider="mock", voice_code="v002", demo_url="", created_at=ts, updated_at=ts),
         Tone(tone_name="活泼童声", provider="mock", voice_code="v003", demo_url="", created_at=ts, updated_at=ts),
         Tone(tone_name="沉稳长者", provider="mock", voice_code="v004", demo_url="", created_at=ts, updated_at=ts),
+        Tone(tone_name="活力少萝", provider="mock", voice_code="v005", demo_url="", created_at=ts, updated_at=ts),
+        Tone(tone_name="清冷御姐", provider="mock", voice_code="v006", demo_url="", created_at=ts, updated_at=ts),
+        Tone(tone_name="阳光少年", provider="mock", voice_code="v007", demo_url="", created_at=ts, updated_at=ts),
     ]
     db.add_all(tones)
     print(f"写入 {len(tones)} 条音色数据")
@@ -251,36 +254,80 @@ def seed_messages():
             message_id=new_uuid(),
             robot_id=robot.robot_id,
             user_id=user.user_id,
-            speaker_type="user",         # 说话人类型是用户
-            speaker_id=user.user_id,     # 具体的说话人是这个用户
+            speaker_type="user",
+            speaker_id=user.user_id,
             content="你好，小助手！初次见面。",
             message_type="text",
-            created_at=ts - 10000,       # 10秒前发送
-            updated_at=ts - 10000,
+            created_at=ts - 100000,
+            updated_at=ts - 100000,
         ),
         # 第二句：机器人的回复
         Message(
             message_id=new_uuid(),
             robot_id=robot.robot_id,
-            user_id=user.user_id,        # 标明这条消息属于哪个用户的聊天窗口
-            speaker_type="robot",        # 说话人类型是机器人
-            speaker_id=robot.robot_id,   # 具体的说话人是这台机器
+            user_id=user.user_id,
+            speaker_type="robot",
+            speaker_id=robot.robot_id,
             content="你好呀！我是你的专属AI机器人，已经准备好为你服务了。今天想聊点什么呢？",
             message_type="text",
-            created_at=ts - 5000,        # 5秒前发送
-            updated_at=ts - 5000,
+            created_at=ts - 95000,
+            updated_at=ts - 95000,
         ),
-        # 第三句：一条系统提示消息（比如用来提示绑定成功）
+        # 第三句：一条系统提示消息
         Message(
             message_id=new_uuid(),
             robot_id=robot.robot_id,
             user_id=user.user_id,
-            speaker_type="system",       # 说话人类型是系统
+            speaker_type="system",
             speaker_id="system",
             content="【系统提示】您已成功绑定该机器人设备，现在可以开始聊天了。",
             message_type="text",
-            created_at=ts,               # 现在发送
-            updated_at=ts,
+            created_at=ts - 90000,
+            updated_at=ts - 90000,
+        ),
+        Message(
+            message_id=new_uuid(),
+            robot_id=robot.robot_id,
+            user_id=user.user_id,
+            speaker_type="user",
+            speaker_id=user.user_id,
+            content="你能帮我做些什么？",
+            message_type="text",
+            created_at=ts - 85000,
+            updated_at=ts - 85000,
+        ),
+        Message(
+            message_id=new_uuid(),
+            robot_id=robot.robot_id,
+            user_id=user.user_id,
+            speaker_type="robot",
+            speaker_id=robot.robot_id,
+            content="我可以陪你聊天，设置日历提醒，监测健康数据，甚至可以给你讲故事或者播报天气。你有什么特别想试试的吗？",
+            message_type="text",
+            created_at=ts - 80000,
+            updated_at=ts - 80000,
+        ),
+        Message(
+            message_id=new_uuid(),
+            robot_id=robot.robot_id,
+            user_id=user.user_id,
+            speaker_type="user",
+            speaker_id=user.user_id,
+            content="听起来挺不错的。那你给我讲个故事吧。",
+            message_type="text",
+            created_at=ts - 75000,
+            updated_at=ts - 75000,
+        ),
+        Message(
+            message_id=new_uuid(),
+            robot_id=robot.robot_id,
+            user_id=user.user_id,
+            speaker_type="robot",
+            speaker_id=robot.robot_id,
+            content="好的呀！从前，有一个小机器人，它来到了一个充满好奇心的新家庭。它很好奇这个世界是怎么样的，每天晚上它都会在夜空中寻找最亮的那颗星星...",
+            message_type="text",
+            created_at=ts - 70000,
+            updated_at=ts - 70000,
         )
     ]
 

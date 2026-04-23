@@ -73,9 +73,10 @@ def bind_robot(
     if robot is None:
         robot = Robot(
             robot_id=body.robotID,
-            robot_name=body.robotID,
+            robot_name=body.robotName or body.robotID,
             model="",
             status=1,
+            current_tone_id=body.toneID,
             created_at=ts,
             updated_at=ts,
         )
@@ -99,6 +100,30 @@ def bind_robot(
         RobotPersonalityRecord.is_current == 1,
         RobotPersonalityRecord.deleted_at.is_(None),
     ).first()
+    
+    if current_personality is None and body.personalityID is not None:
+        # Fetch the preset personality to copy its traits
+        preset = db.query(PersonalityPreset).filter(PersonalityPreset.personality_id == body.personalityID).first()
+        if preset:
+            current_personality = RobotPersonalityRecord(
+                personality_record_id=new_uuid(),
+                robot_id=body.robotID,
+                source="preset",
+                preset_personality_id=body.personalityID,
+                is_current=1,
+                mbti_e=preset.mbti_e, mbti_i=preset.mbti_i,
+                mbti_s=preset.mbti_s, mbti_n=preset.mbti_n,
+                mbti_t=preset.mbti_t, mbti_f=preset.mbti_f,
+                mbti_j=preset.mbti_j, mbti_p=preset.mbti_p,
+                big5_neuroticism=preset.big5_neuroticism,
+                big5_extraversion=preset.big5_extraversion,
+                big5_openness=preset.big5_openness,
+                big5_agreeableness=preset.big5_agreeableness,
+                big5_conscientiousness=preset.big5_conscientiousness,
+                created_at=ts, updated_at=ts
+            )
+            db.add(current_personality)
+            db.flush()
 
     binding = UserRobotBinding(
         binding_id=new_uuid(),
@@ -260,16 +285,20 @@ def get_user_robots(
 
     if current_user.is_admin == 1:
         robots = db.query(Robot).filter(Robot.deleted_at.is_(None)).all()
+        robot_list = []
+        for r in robots:
+            # 查找第一条绑定记录作为参考
+            first_binding = db.query(UserRobotBinding).filter(UserRobotBinding.robot_id == r.robot_id, UserRobotBinding.deleted_at.is_(None)).first()
+            p_id = first_binding.init_personality_id if first_binding else None
+            t_id = first_binding.bind_tone_id if first_binding and first_binding.bind_tone_id is not None else getattr(r, 'current_tone_id', None)
+            robot_list.append(RobotItem(
+                robotCode=r.robot_id, 
+                robotName=r.robot_name or r.robot_id,
+                toneID=t_id,
+                personalityID=p_id 
+            ))
         return R.ok(data=UserRobotListData(
-            robotList=[
-                RobotItem(
-                    robotCode=r.robot_id, 
-                    robotName=r.robot_name or r.robot_id,
-                    toneID=r.current_tone_id,
-                    personalityID=None 
-                )
-                for r in robots
-            ]
+            robotList=robot_list
         ))
 
     if current_user_id != userID:
