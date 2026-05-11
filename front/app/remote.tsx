@@ -12,6 +12,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Stack } from 'expo-router';
 import { useRobotConnection, ConnectionState } from '@/utils/robotSocket';
+import { discoverRobots, DiscoveredRobot } from '@/utils/robotDiscovery';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 
 const GESTURES = [
@@ -28,6 +29,7 @@ const GESTURES = [
 export default function RemoteControlScreen() {
   const [ip, setIp] = useState('192.168.');
   const [log, setLog] = useState<string[]>([]);
+  const [scanning, setScanning] = useState(false);
   const { state, robotInfo, connect, disconnect, sendCommand } = useRobotConnection(ip);
 
   const addLog = useCallback((msg: string) => {
@@ -41,6 +43,25 @@ export default function RemoteControlScreen() {
     }
     addLog(`连接中... ${ip}:8765`);
     connect();
+  };
+
+  const handleScan = async () => {
+    setScanning(true);
+    addLog('正在搜索局域网内的机器人...');
+    try {
+      const robots = await discoverRobots(3000);
+      if (robots.length > 0) {
+        const robot = robots[0];
+        setIp(robot.ip);
+        addLog(`发现: ${robot.name} (${robot.ip}:${robot.ws_port})`);
+      } else {
+        addLog('未发现机器人，请确认在同一局域网');
+      }
+    } catch (e: any) {
+      addLog(`搜索失败: ${e.message}`);
+    } finally {
+      setScanning(false);
+    }
   };
 
   const handleCommand = async (action: string, params: Record<string, any> = {}) => {
@@ -75,6 +96,17 @@ export default function RemoteControlScreen() {
           keyboardType="numeric"
           editable={state === 'disconnected'}
         />
+        <TouchableOpacity
+          style={[s.btn, { backgroundColor: '#6c47e8', marginRight: 4 }]}
+          onPress={handleScan}
+          disabled={scanning || state !== 'disconnected'}
+        >
+          {scanning ? (
+            <ActivityIndicator size="small" color="#fff" />
+          ) : (
+            <Text style={s.btnText}>搜索</Text>
+          )}
+        </TouchableOpacity>
         {state === 'disconnected' ? (
           <TouchableOpacity style={s.btn} onPress={handleConnect}>
             <Text style={s.btnText}>连接</Text>
