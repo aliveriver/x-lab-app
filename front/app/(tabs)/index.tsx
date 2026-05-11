@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { StyleSheet, FlatList, Pressable, TextInput } from 'react-native';
 import { View } from '@/components/Themed';
 import { FontAwesome } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import EmptyRobotView from '@/components/robot/EmptyRobotView';
 import RobotListItem from '@/components/robot/RobotListItem';
 import AddRobotModal from '@/components/robot/AddRobotModal';
@@ -11,6 +12,7 @@ export default function RobotScreen() {
   const { robots, addRobot } = useRobots();
   const [isAddModalVisible, setAddModalVisible] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const router = useRouter();
 
   // 过滤逻辑
   const filteredRobots = robots.filter(r => 
@@ -61,6 +63,9 @@ export default function RobotScreen() {
           <Pressable style={styles.fab} onPress={() => setAddModalVisible(true)}>
             <FontAwesome name="plus" size={24} color="#011e41" />
           </Pressable>
+          <Pressable style={styles.remoteFab} onPress={() => router.push('/remote' as any)}>
+            <FontAwesome name="gamepad" size={24} color="#011e41" />
+          </Pressable>
         </>
       )}
       
@@ -109,6 +114,22 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: 30,
     right: 30,
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: '#00e5ff',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#00e5ff',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.5,
+    shadowRadius: 10,
+    elevation: 8,
+  },
+  remoteFab: {
+    position: 'absolute',
+    bottom: 30,
+    left: 30,
     width: 60,
     height: 60,
     borderRadius: 30,
