@@ -82,3 +82,14 @@ env/
 .env
 .env.local
 .env.*.local
+
+# Claude Code
+.claude/
+
+# Generated native folders (front)
+front/android/
+front/ios/
+
+# Temp/docs
+pdf_text.txt
+*.pdf
