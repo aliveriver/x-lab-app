@@ -1,56 +1,120 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Platform } from 'react-native';
+import {
+  MOCK_USER,
+  MOCK_ROBOTS,
+  MOCK_TONES,
+  MOCK_PERSONALITIES,
+  MOCK_PERSONALITY_DATA,
+  MOCK_MESSAGES,
+  MOCK_ABSTRACTS,
+  MOCK_FAMILY_PORTRAIT,
+  MOCK_USER_PORTRAITS,
+  MOCK_USER_PORTRAIT_DETAIL,
+} from './mockData';
 
-// 配置：若使用 Android 模拟器请改为 'http://10.0.2.2:8000'
-// 本机测试可使用 'http://127.0.0.1:8000' 或局域网 IP
-export const API_BASE_URL = Platform.OS === 'android' ? 'http://10.0.2.2:8000' : 'http://127.0.0.1:8000';
+export const API_BASE_URL = 'mock://local';
 
 type FetchOptions = RequestInit & {
   bodyData?: any;
 };
 
-export async function fetchApi(endpoint: string, options: FetchOptions = {}) {
-  const url = `${API_BASE_URL}${endpoint}`;
-  
-  const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
-  };
+const ok = (data: any) => ({ code: 200, data });
 
-  // 尝试携带 Token
-  try {
-    const token = await AsyncStorage.getItem('ACCESS_TOKEN');
-    if (token) {
-      headers['Authorization'] = `Bearer ${token}`;
+let mockRobots = [...MOCK_ROBOTS];
+
+export async function fetchApi(endpoint: string, options: FetchOptions = {}): Promise<any> {
+  const method = (options.method || 'GET').toUpperCase();
+  console.log(`[MOCK API] ${method} ${endpoint}`);
+
+  await new Promise(r => setTimeout(r, 100));
+
+  // Auth
+  if (endpoint === '/api/user/token' && method === 'POST') {
+    return ok({ token: 'mock-token', userID: MOCK_USER.userID });
+  }
+
+  // User info
+  if (endpoint.match(/\/api\/user\/.+\/info$/) && method === 'GET') {
+    return ok(MOCK_USER);
+  }
+  if (endpoint.match(/\/api\/user\/.+\/info\/change/) && method === 'PUT') {
+    return ok(null);
+  }
+
+  // Robot list
+  if (endpoint.match(/\/api\/user\/.+\/robot$/) && method === 'GET') {
+    return ok({ robotList: mockRobots });
+  }
+
+  // Bind robot
+  if (endpoint === '/api/user/robot/bind' && method === 'POST') {
+    const body = options.bodyData;
+    if (body) {
+      mockRobots.push({
+        robotCode: body.robotID,
+        robotName: body.robotName,
+        toneID: body.toneID,
+        personalityID: body.personalityID,
+      });
     }
-  } catch (e) {
-    console.error('Failed to get token for api call', e);
+    return ok(null);
   }
 
-  if (options.headers) {
-    Object.assign(headers, options.headers);
+  // Update robot alias
+  if (endpoint === '/api/user/robot/alias' && method === 'PUT') {
+    const body = options.bodyData;
+    if (body) {
+      mockRobots = mockRobots.map(r =>
+        r.robotCode === body.robotID ? { ...r, robotName: body.robotAlias } : r
+      );
+    }
+    return ok(null);
   }
 
-  const config: RequestInit = {
-    method: options.method || 'GET',
-    headers,
-  };
-
-  if (options.bodyData) {
-    config.body = JSON.stringify(options.bodyData);
+  // Tone list
+  if (endpoint.match(/\/api\/robot\/.+\/tone$/) && method === 'GET') {
+    return ok({ toneList: MOCK_TONES });
   }
 
-  console.log(`[API CALL] ${config.method} ${url}`);
-
-  try {
-    const response = await fetch(url, config);
-    const json = await response.json();
-    console.log(`[API RESP] ${config.method} ${url}`, json);
-    
-    // 如果返回 code 为 401 或类似未授权，可在此拦截跳转登录
-    
-    return json;
-  } catch (error) {
-    console.error(`[API ERROR] ${config.method} ${url}`, error);
-    throw error;
+  // Change tone
+  if (endpoint.match(/\/api\/robot\/.+\/tone\/change/) && method === 'PUT') {
+    return ok(null);
   }
+
+  // Init personality list
+  if (endpoint.match(/\/api\/robot\/.+\/initPersonality/) && method === 'GET') {
+    return ok({ personalityList: MOCK_PERSONALITIES });
+  }
+
+  // Robot personality data
+  if (endpoint.match(/\/api\/robot\/.+\/personality$/) && method === 'GET') {
+    return ok(MOCK_PERSONALITY_DATA);
+  }
+
+  // Messages
+  if (endpoint.match(/\/api\/robot\/.+\/message/) && method === 'GET') {
+    return ok({ messageList: MOCK_MESSAGES });
+  }
+
+  // Abstracts
+  if (endpoint.match(/\/api\/robot\/.+\/abstract/) && method === 'GET') {
+    return ok({ abstractList: MOCK_ABSTRACTS });
+  }
+
+  // Family portrait
+  if (endpoint.match(/\/api\/robot\/.+\/familyportrait/) && method === 'GET') {
+    return ok({ familyPortrait: MOCK_FAMILY_PORTRAIT });
+  }
+
+  // User portrait list
+  if (endpoint.match(/\/api\/robot\/.+\/userportrait$/) && method === 'GET') {
+    return ok({ userPortraitList: MOCK_USER_PORTRAITS });
+  }
+
+  // User portrait detail
+  if (endpoint.match(/\/api\/robot\/.+\/userportrait\/.+/) && method === 'GET') {
+    return ok(MOCK_USER_PORTRAIT_DETAIL);
+  }
+
+  console.warn(`[MOCK API] Unhandled: ${method} ${endpoint}`);
+  return ok(null);
 }
