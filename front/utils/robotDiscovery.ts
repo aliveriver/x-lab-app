@@ -8,7 +8,7 @@ export interface DiscoveredRobot {
 }
 
 export function discoverByIpHint(ip: string, timeoutMs: number = SCAN_TIMEOUT): Promise<DiscoveredRobot[]> {
-  const parts = ip.split('.');
+  const parts = ip.replace(/\.$/, '').split('.').filter(Boolean);
   if (parts.length >= 3) {
     const prefix = parts.slice(0, 3).join('.');
     return scanSubnet(prefix, timeoutMs);
