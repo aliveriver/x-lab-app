@@ -1,5 +1,5 @@
 const PING_PATH = '/ping';
-const SCAN_TIMEOUT = 2000;
+const SCAN_TIMEOUT = 3000;
 
 export interface DiscoveredRobot {
   name: string;
@@ -7,27 +7,26 @@ export interface DiscoveredRobot {
   ws_port: number;
 }
 
-export async function discoverRobots(subnetPrefix?: string, timeoutMs: number = SCAN_TIMEOUT): Promise<DiscoveredRobot[]> {
-  const prefix = subnetPrefix || guessSubnet();
-  if (!prefix) return [];
-
-  const found: DiscoveredRobot[] = [];
-  const batchSize = 20;
-
-  for (let start = 1; start <= 254; start += batchSize) {
-    const batch: Promise<void>[] = [];
-    for (let i = start; i < Math.min(start + batchSize, 255); i++) {
-      const ip = `${prefix}.${i}`;
-      batch.push(
-        probeHost(ip, timeoutMs)
-          .then((robot) => { if (robot) found.push(robot); })
-          .catch(() => {})
-      );
-    }
-    await Promise.all(batch);
-    if (found.length > 0) break;
+export function discoverByIpHint(ip: string, timeoutMs: number = SCAN_TIMEOUT): Promise<DiscoveredRobot[]> {
+  const parts = ip.split('.');
+  if (parts.length >= 3) {
+    const prefix = parts.slice(0, 3).join('.');
+    return scanSubnet(prefix, timeoutMs);
   }
+  return Promise.resolve([]);
+}
 
+async function scanSubnet(prefix: string, timeoutMs: number): Promise<DiscoveredRobot[]> {
+  const found: DiscoveredRobot[] = [];
+
+  const promises = Array.from({ length: 254 }, (_, i) => {
+    const ip = `${prefix}.${i + 1}`;
+    return probeHost(ip, timeoutMs)
+      .then((robot) => { if (robot) found.push(robot); })
+      .catch(() => {});
+  });
+
+  await Promise.all(promises);
   return found;
 }
 
@@ -48,17 +47,4 @@ async function probeHost(ip: string, timeoutMs: number): Promise<DiscoveredRobot
   } finally {
     clearTimeout(timer);
   }
-}
-
-function guessSubnet(): string {
-  return '';
-}
-
-export function discoverByIpHint(ip: string, timeoutMs: number = SCAN_TIMEOUT): Promise<DiscoveredRobot[]> {
-  const parts = ip.split('.');
-  if (parts.length === 4) {
-    const prefix = parts.slice(0, 3).join('.');
-    return discoverRobots(prefix, timeoutMs);
-  }
-  return Promise.resolve([]);
 }
