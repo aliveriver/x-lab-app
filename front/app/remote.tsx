@@ -11,8 +11,8 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Stack } from 'expo-router';
-import { useRobotConnection, ConnectionState } from '@/utils/robotSocket';
-import { discoverRobots, DiscoveredRobot } from '@/utils/robotDiscovery';
+import { useRobotConnection } from '@/utils/robotSocket';
+import { discoverByIpHint } from '@/utils/robotDiscovery';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 
 const GESTURES = [
@@ -49,7 +49,7 @@ export default function RemoteControlScreen() {
     setScanning(true);
     addLog('正在搜索局域网内的机器人...');
     try {
-      const robots = await discoverRobots(3000);
+      const robots = await discoverByIpHint(ip, 2000);
       if (robots.length > 0) {
         const robot = robots[0];
         setIp(robot.ip);
