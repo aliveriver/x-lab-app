@@ -29,7 +29,7 @@ export function useRobotConnection(robotIp: string, port: number = 8765) {
     if (wsRef.current?.readyState === WebSocket.OPEN) return;
 
     setState('connecting');
-    const url = `ws://${robotIp}:${port}`;
+    const url = `ws://${robotIp}:${port}/ws`;
     const ws = new WebSocket(url);
 
     ws.onopen = () => {
