@@ -23,7 +23,8 @@
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
-      "package": "com.aliveriver.app_tmp"
+      "package": "com.aliveriver.app_tmp",
+      "usesClearTextTraffic": true
     },
     "web": {
       "bundler": "metro",
