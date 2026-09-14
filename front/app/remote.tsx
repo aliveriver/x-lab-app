@@ -35,6 +35,13 @@ const GESTURES = [
   { key: 'ok', label: 'OK', icon: 'circle-o' },
 ] as const;
 
+type TrajectoryItem = {
+  id: string;
+  name: string;
+  duration: number;
+  frame_count: number;
+};
+
 // PLACEHOLDER_REST
 
 export default function RemoteControlScreen() {
@@ -44,6 +51,11 @@ export default function RemoteControlScreen() {
   const [armSide, setArmSide] = useState<'left' | 'right'>('left');
   const [handSide, setHandSide] = useState<'left' | 'right'>('right');
   const [joints, setJoints] = useState<number[]>([0, 0, 0, 0, 0, 0, 0]);
+  const [trajectoryName, setTrajectoryName] = useState('新轨迹');
+  const [trajectoryMode, setTrajectoryMode] = useState<'idle' | 'recording' | 'replaying'>('idle');
+  const [trajectories, setTrajectories] = useState<TrajectoryItem[]>([]);
+  const [selectedTrajectory, setSelectedTrajectory] = useState<string | null>(null);
+  const [trajectoryBusy, setTrajectoryBusy] = useState(false);
   const { state, robotInfo, connect, disconnect, sendCommand } = useRobotConnection(ip);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -88,14 +100,99 @@ export default function RemoteControlScreen() {
     try {
       addLog(`→ ${action}`);
       const result = await sendCommand(action, params);
-      if (result.ok) {
+      if (result.ok && result.data?.ok !== false) {
         addLog(`✓ ${action}`);
       } else {
-        addLog(`✗ ${action}: ${result.error}`);
+        addLog(`✗ ${action}: ${result.error || result.data?.error || '执行失败'}`);
       }
     } catch (e: any) {
       addLog(`✗ ${e.message}`);
     }
+  };
+
+  const trajectoryCommand = async (action: string, params: Record<string, any> = {}) => {
+    const result = await sendCommand(action, params);
+    if (!result.ok || result.data?.ok === false) {
+      throw new Error(result.error || result.data?.error || `${action} 失败`);
+    }
+    return result.data;
+  };
+
+  const refreshTrajectories = async () => {
+    try {
+      const [status, list] = await Promise.all([
+        trajectoryCommand('trajectory_status'),
+        trajectoryCommand('trajectory_list'),
+      ]);
+      setTrajectoryMode(status.mode || 'idle');
+      const items = list.trajectories || [];
+      setTrajectories(items);
+      if (!selectedTrajectory && items.length) setSelectedTrajectory(items[0].id);
+      addLog(`已刷新轨迹：${items.length} 条`);
+    } catch (e: any) {
+      addLog(`✗ 刷新轨迹：${e.message}`);
+      Alert.alert('轨迹操作失败', e.message);
+    }
+  };
+
+  const toggleRecording = async () => {
+    setTrajectoryBusy(true);
+    try {
+      if (trajectoryMode === 'recording') {
+        const status = await trajectoryCommand('trajectory_record_stop');
+        setTrajectoryMode(status.mode || 'idle');
+        addLog('✓ 轨迹已停止并保存');
+        await refreshTrajectories();
+      } else {
+        const status = await trajectoryCommand('trajectory_record_start', {
+          name: trajectoryName.trim() || '新轨迹',
+          sample_interval: 0.1,
+          max_duration: 120,
+        });
+        setTrajectoryMode(status.mode || 'recording');
+        addLog('● 开始轨迹录制，可手动拖动双臂');
+      }
+    } catch (e: any) {
+      addLog(`✗ 轨迹录制：${e.message}`);
+      Alert.alert('录制失败', e.message);
+    } finally {
+      setTrajectoryBusy(false);
+    }
+  };
+
+  const toggleReplay = async () => {
+    if (trajectoryMode === 'replaying') {
+      try {
+        const status = await trajectoryCommand('trajectory_replay_stop');
+        setTrajectoryMode(status.mode || 'idle');
+        addLog('■ 已停止轨迹复刻');
+      } catch (e: any) { Alert.alert('停止失败', e.message); }
+      return;
+    }
+    if (!selectedTrajectory) {
+      Alert.alert('请选择轨迹', '先点击刷新，再选择一条已保存轨迹。');
+      return;
+    }
+    Alert.alert('确认安全', '机器人双臂将立即运动，请清空周围人员和障碍物。', [
+      { text: '取消', style: 'cancel' },
+      { text: '开始复刻', style: 'destructive', onPress: async () => {
+        setTrajectoryBusy(true);
+        try {
+          const status = await trajectoryCommand('trajectory_replay_start', {
+            trajectory_id: selectedTrajectory,
+            speed_scale: 1,
+            smoothing: 0.15,
+            repeat_count: 1,
+            safety_confirmed: true,
+          });
+          setTrajectoryMode(status.mode || 'replaying');
+          addLog('▶ 开始轨迹复刻');
+        } catch (e: any) {
+          addLog(`✗ 轨迹复刻：${e.message}`);
+          Alert.alert('复刻失败', e.message);
+        } finally { setTrajectoryBusy(false); }
+      } },
+    ]);
   };
 
   const handleJointChange = (index: number, value: number) => {
@@ -252,6 +349,37 @@ export default function RemoteControlScreen() {
           {/* 语音 */}
           <Text style={s.sectionTitle}>语音</Text>
           <SaySection onSay={(text) => handleCommand('say', { text })} />
+
+          {/* 轨迹录制与复刻：复用当前 WebSocket 连接 */}
+          <View style={s.trajectoryHeader}>
+            <Text style={s.sectionTitle}>轨迹录制与复刻</Text>
+            <Text style={s.trajectoryState}>{trajectoryMode === 'recording' ? '● 录制中' : trajectoryMode === 'replaying' ? '▶ 复刻中' : '空闲'}</Text>
+          </View>
+          <TextInput
+            style={s.trajectoryInput}
+            value={trajectoryName}
+            onChangeText={setTrajectoryName}
+            placeholder="轨迹名称"
+            placeholderTextColor="#666"
+            editable={trajectoryMode === 'idle'}
+          />
+          <View style={s.trajectoryActions}>
+            <TouchableOpacity style={[s.wideBtn, { backgroundColor: trajectoryMode === 'recording' ? '#f44336' : '#be2948' }]} onPress={toggleRecording} disabled={trajectoryBusy || trajectoryMode === 'replaying'}>
+              <Text style={s.btnText}>{trajectoryMode === 'recording' ? '停止并保存' : '开始录制'}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={s.wideBtn} onPress={toggleReplay} disabled={trajectoryBusy || trajectoryMode === 'recording'}>
+              <Text style={s.btnText}>{trajectoryMode === 'replaying' ? '停止复刻' : '复刻所选轨迹'}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={[s.wideBtn, { backgroundColor: '#6c47e8' }]} onPress={refreshTrajectories} disabled={trajectoryBusy}>
+              <Text style={s.btnText}>刷新轨迹</Text>
+            </TouchableOpacity>
+          </View>
+          {trajectories.map((item) => (
+            <TouchableOpacity key={item.id} style={[s.trajectoryItem, selectedTrajectory === item.id && s.trajectorySelected]} onPress={() => trajectoryMode === 'idle' && setSelectedTrajectory(item.id)}>
+              <Text style={s.trajectoryName}>{selectedTrajectory === item.id ? '◉ ' : '○ '}{item.name}</Text>
+              <Text style={s.trajectoryMeta}>{item.duration.toFixed(1)} 秒 · {item.frame_count} 帧</Text>
+            </TouchableOpacity>
+          ))}
         </ScrollView>
       )}
 
@@ -315,6 +443,15 @@ const s = StyleSheet.create({
   jointValue: { color: '#8ab4f8', fontSize: 11, width: 40, textAlign: 'right' },
   sayRow: { flexDirection: 'row', alignItems: 'center' },
   sayInput: { flex: 1, backgroundColor: '#0a2a52', color: '#fff', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 8, fontSize: 14 },
+  trajectoryHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 12 },
+  trajectoryState: { color: '#00e5ff', fontSize: 12 },
+  trajectoryInput: { backgroundColor: '#0a2a52', color: '#fff', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 9, marginBottom: 8 },
+  trajectoryActions: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 8 },
+  wideBtn: { backgroundColor: '#1a73e8', borderRadius: 8, paddingHorizontal: 14, paddingVertical: 11 },
+  trajectoryItem: { backgroundColor: '#0a2a52', borderWidth: 1, borderColor: '#1a5c9e', borderRadius: 8, padding: 10, marginBottom: 6 },
+  trajectorySelected: { borderColor: '#00e5ff' },
+  trajectoryName: { color: '#fff', fontSize: 13, fontWeight: '600' },
+  trajectoryMeta: { color: '#8ab4f8', fontSize: 11, marginTop: 3 },
   logBox: { height: 160, borderTopWidth: 1, borderTopColor: '#1a5c9e', padding: 8 },
   logTitle: { color: '#8ab4f8', fontSize: 12, marginBottom: 4 },
   logScroll: { flex: 1 },
