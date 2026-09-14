@@ -26,14 +26,9 @@ const JOINTS = [
   { name: 'J7 腕偏转', min: -0.79, max: 0.79 },
 ];
 
-const GESTURES = [
-  { key: 'open', label: '张开', icon: 'hand-paper-o' },
-  { key: 'close', label: '握拳', icon: 'hand-rock-o' },
-  { key: 'thumbup', label: '点赞', icon: 'thumbs-up' },
-  { key: 'peace', label: '剪刀手', icon: 'hand-peace-o' },
-  { key: 'point', label: '指向', icon: 'hand-pointer-o' },
-  { key: 'ok', label: 'OK', icon: 'circle-o' },
-] as const;
+const FINGERS = ['小指', '无名指', '中指', '食指', '拇指弯曲', '拇指旋转'];
+
+type ArmPose = { id: string; name: string; left: number[]; right: number[] };
 
 type TrajectoryItem = {
   id: string;
@@ -48,9 +43,14 @@ export default function RemoteControlScreen() {
   const [ip, setIp] = useState('192.168.');
   const [log, setLog] = useState<string[]>([]);
   const [scanning, setScanning] = useState(false);
-  const [armSide, setArmSide] = useState<'left' | 'right'>('left');
-  const [handSide, setHandSide] = useState<'left' | 'right'>('right');
-  const [joints, setJoints] = useState<number[]>([0, 0, 0, 0, 0, 0, 0]);
+  const [armSide, setArmSide] = useState<'left' | 'right' | 'both'>('left');
+  const [handSide, setHandSide] = useState<'left' | 'right' | 'both'>('right');
+  const [leftJoints, setLeftJoints] = useState<number[]>([0, 0, 0, 0, 0, 0, 0]);
+  const [rightJoints, setRightJoints] = useState<number[]>([0, 0, 0, 0, 0, 0, 0]);
+  const [leftFingers, setLeftFingers] = useState<number[]>([0, 0, 0, 0, 0, 0]);
+  const [rightFingers, setRightFingers] = useState<number[]>([0, 0, 0, 0, 0, 0]);
+  const [poseName, setPoseName] = useState('新动作');
+  const [poses, setPoses] = useState<ArmPose[]>([]);
   const [trajectoryName, setTrajectoryName] = useState('新轨迹');
   const [trajectoryMode, setTrajectoryMode] = useState<'idle' | 'recording' | 'replaying'>('idle');
   const [trajectories, setTrajectories] = useState<TrajectoryItem[]>([]);
@@ -215,14 +215,52 @@ export default function RemoteControlScreen() {
   };
 
   const handleJointChange = (index: number, value: number) => {
-    const newJoints = [...joints];
+    const current = armSide === 'right' ? rightJoints : leftJoints;
+    const newJoints = [...current];
     newJoints[index] = Math.round(value * 100) / 100;
-    setJoints(newJoints);
+    if (armSide === 'right') setRightJoints(newJoints); else setLeftJoints(newJoints);
 
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => {
-      handleCommand('move_arm', { side: armSide, positions: newJoints });
+      if (armSide === 'both') handleCommand('move_both_arms', { left_positions: newJoints, right_positions: rightJoints });
+      else handleCommand('move_arm', { side: armSide, positions: newJoints });
     }, 150);
+  };
+
+  const changeRightJoint = (index: number, value: number) => {
+    const next = [...rightJoints]; next[index] = Math.round(value * 100) / 100; setRightJoints(next);
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => handleCommand('move_both_arms', { left_positions: leftJoints, right_positions: next }), 150);
+  };
+
+  const changeFinger = (side: 'left' | 'right', index: number, value: number) => {
+    const source = side === 'left' ? leftFingers : rightFingers;
+    const next = [...source]; next[index] = Math.round(value * 100) / 100;
+    if (side === 'left') setLeftFingers(next); else setRightFingers(next);
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      if (handSide === 'both') handleCommand('control_both_hands', { left_angles: side === 'left' ? next : leftFingers, right_angles: side === 'right' ? next : rightFingers });
+      else handleCommand('control_hand', { side, gesture: 'custom', angles: next });
+    }, 120);
+  };
+
+  const refreshPoses = async () => {
+    const result = await trajectoryCommand('arm_pose_list');
+    setPoses(result.poses || []);
+  };
+
+  const savePose = async () => {
+    await trajectoryCommand('arm_pose_save', { name: poseName, left_positions: leftJoints, right_positions: rightJoints });
+    addLog('✓ 固定动作已保存'); await refreshPoses();
+  };
+
+  const executePose = (pose: ArmPose) => Alert.alert('确认执行', `将执行固定动作“${pose.name}”`, [
+    { text: '取消', style: 'cancel' },
+    { text: '执行', style: 'destructive', onPress: () => handleCommand('arm_pose_execute', { pose_id: pose.id, safety_confirmed: true }) },
+  ]);
+
+  const deletePose = async (pose: ArmPose) => {
+    await trajectoryCommand('arm_pose_delete', { pose_id: pose.id }); await refreshPoses();
   };
 
   const stateColor = state === 'connected' ? '#4caf50' : state === 'connecting' ? '#ff9800' : '#f44336';
@@ -301,9 +339,13 @@ export default function RemoteControlScreen() {
               <TouchableOpacity style={[s.tab, armSide === 'right' && s.tabActive]} onPress={() => setArmSide('right')}>
                 <Text style={[s.tabText, armSide === 'right' && s.tabTextActive]}>右臂</Text>
               </TouchableOpacity>
+              <TouchableOpacity style={[s.tab, armSide === 'both' && s.tabActive]} onPress={() => setArmSide('both')}>
+                <Text style={[s.tabText, armSide === 'both' && s.tabTextActive]}>双臂</Text>
+              </TouchableOpacity>
             </View>
           </View>
 
+          {armSide === 'both' && <Text style={s.subTitle}>左臂</Text>}
           {JOINTS.map((joint, i) => (
             <View key={i} style={s.sliderRow}>
               <Text style={s.jointName}>{joint.name}</Text>
@@ -311,34 +353,20 @@ export default function RemoteControlScreen() {
                 style={s.slider}
                 minimumValue={joint.min}
                 maximumValue={joint.max}
-                value={joints[i]}
+                value={armSide === 'right' ? rightJoints[i] : leftJoints[i]}
                 onValueChange={(v) => handleJointChange(i, v)}
                 minimumTrackTintColor="#1a73e8"
                 maximumTrackTintColor="#333"
                 thumbTintColor="#1a73e8"
               />
-              <Text style={s.jointValue}>{joints[i].toFixed(2)}</Text>
+              <Text style={s.jointValue}>{(armSide === 'right' ? rightJoints[i] : leftJoints[i]).toFixed(2)}</Text>
             </View>
           ))}
+          {armSide === 'both' && <><Text style={s.subTitle}>右臂</Text>{JOINTS.map((joint, i) => <View key={`r${i}`} style={s.sliderRow}><Text style={s.jointName}>{joint.name}</Text><Slider style={s.slider} minimumValue={joint.min} maximumValue={joint.max} value={rightJoints[i]} onValueChange={(v) => changeRightJoint(i, v)} minimumTrackTintColor="#1a73e8" maximumTrackTintColor="#333" thumbTintColor="#1a73e8"/><Text style={s.jointValue}>{rightJoints[i].toFixed(2)}</Text></View>)}</>}
 
-          {/* 预设动作 */}
-          <Text style={s.sectionTitle}>预设动作</Text>
-          <View style={s.row}>
-            <TouchableOpacity style={s.actionBtn} onPress={() => { setJoints([0, -0.8, 0, 0.8, 0, 0, 0]); handleCommand('move_arm', { side: armSide, positions: [0, -0.8, 0, 0.8, 0, 0, 0] }); }}>
-              <FontAwesome name="arrow-up" size={22} color="#fff" />
-              <Text style={s.actionLabel}>前举</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={s.actionBtn} onPress={() => { setJoints([0, 0, 0, 0, 0, 0, 0]); handleCommand('move_arm', { side: armSide, positions: [0, 0, 0, 0, 0, 0, 0] }); }}>
-              <FontAwesome name="arrow-down" size={22} color="#fff" />
-              <Text style={s.actionLabel}>垂下</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={s.actionBtn} onPress={() => { setJoints([1.2, 0, 0, 0.5, 0, 0, 0]); handleCommand('move_arm', { side: armSide, positions: [1.2, 0, 0, 0.5, 0, 0, 0] }); }}>
-              <FontAwesome name="hand-stop-o" size={22} color="#fff" />
-              <Text style={s.actionLabel}>招手</Text>
-            </TouchableOpacity>
-          </View>
-
-          {/* PLACEHOLDER_GESTURES */}
+          <Text style={s.sectionTitle}>固定动作</Text>
+          <View style={s.sayRow}><TextInput style={s.sayInput} value={poseName} onChangeText={setPoseName} placeholder="动作名称" placeholderTextColor="#666"/><TouchableOpacity style={[s.btn,{marginLeft:8}]} onPress={savePose}><Text style={s.btnText}>保存当前双臂</Text></TouchableOpacity><TouchableOpacity style={[s.btn,{marginLeft:8}]} onPress={refreshPoses}><Text style={s.btnText}>刷新</Text></TouchableOpacity></View>
+          {poses.map(pose => <View key={pose.id} style={s.poseRow}><Text style={s.poseText}>{pose.name}</Text><TouchableOpacity style={s.smallBtn} onPress={() => executePose(pose)}><Text style={s.btnText}>执行</Text></TouchableOpacity><TouchableOpacity style={[s.smallBtn,{backgroundColor:'#7f1d1d'}]} onPress={() => deletePose(pose)}><Text style={s.btnText}>删除</Text></TouchableOpacity></View>)}
 
           {/* 手势控制 */}
           <View style={s.tabRow}>
@@ -350,20 +378,11 @@ export default function RemoteControlScreen() {
               <TouchableOpacity style={[s.tab, handSide === 'right' && s.tabActive]} onPress={() => setHandSide('right')}>
                 <Text style={[s.tabText, handSide === 'right' && s.tabTextActive]}>右手</Text>
               </TouchableOpacity>
+              <TouchableOpacity style={[s.tab, handSide === 'both' && s.tabActive]} onPress={() => setHandSide('both')}><Text style={[s.tabText, handSide === 'both' && s.tabTextActive]}>双手</Text></TouchableOpacity>
             </View>
           </View>
-          <View style={s.row}>
-            {GESTURES.map((g) => (
-              <TouchableOpacity
-                key={g.key}
-                style={s.actionBtn}
-                onPress={() => handleCommand('control_hand', { side: handSide, gesture: g.key })}
-              >
-                <FontAwesome name={g.icon as any} size={22} color="#fff" />
-                <Text style={s.actionLabel}>{g.label}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
+          {(handSide === 'left' || handSide === 'both') && <><Text style={s.subTitle}>左手</Text>{FINGERS.map((name,i)=><View key={`lf${i}`} style={s.sliderRow}><Text style={s.jointName}>{name}</Text><Slider style={s.slider} minimumValue={0} maximumValue={1} value={leftFingers[i]} onValueChange={v=>changeFinger('left',i,v)} minimumTrackTintColor="#1a73e8" maximumTrackTintColor="#333" thumbTintColor="#1a73e8"/><Text style={s.jointValue}>{leftFingers[i].toFixed(2)}</Text></View>)}</>}
+          {(handSide === 'right' || handSide === 'both') && <><Text style={s.subTitle}>右手</Text>{FINGERS.map((name,i)=><View key={`rf${i}`} style={s.sliderRow}><Text style={s.jointName}>{name}</Text><Slider style={s.slider} minimumValue={0} maximumValue={1} value={rightFingers[i]} onValueChange={v=>changeFinger('right',i,v)} minimumTrackTintColor="#1a73e8" maximumTrackTintColor="#333" thumbTintColor="#1a73e8"/><Text style={s.jointValue}>{rightFingers[i].toFixed(2)}</Text></View>)}</>}
 
           {/* 语音 */}
           <Text style={s.sectionTitle}>语音</Text>
@@ -450,6 +469,7 @@ const s = StyleSheet.create({
   panel: { flex: 1 },
   panelContent: { padding: 12, paddingBottom: 20 },
   sectionTitle: { color: '#8ab4f8', fontSize: 13, fontWeight: '600', marginTop: 10, marginBottom: 6 },
+  subTitle: { color: '#00e5ff', fontSize: 12, fontWeight: '600', marginTop: 8 },
   row: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   actionBtn: { backgroundColor: '#0a2a52', borderRadius: 10, width: 68, height: 64, alignItems: 'center', justifyContent: 'center', gap: 3 },
   actionLabel: { color: '#ccc', fontSize: 10 },
@@ -465,6 +485,9 @@ const s = StyleSheet.create({
   jointValue: { color: '#8ab4f8', fontSize: 11, width: 40, textAlign: 'right' },
   sayRow: { flexDirection: 'row', alignItems: 'center' },
   sayInput: { flex: 1, backgroundColor: '#0a2a52', color: '#fff', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 8, fontSize: 14 },
+  poseRow: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#0a2a52', borderRadius: 8, padding: 8, marginTop: 6 },
+  poseText: { flex: 1, color: '#fff' },
+  smallBtn: { backgroundColor: '#1a73e8', borderRadius: 6, paddingHorizontal: 10, paddingVertical: 7 },
   trajectoryHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 12 },
   trajectoryState: { color: '#00e5ff', fontSize: 12 },
   trajectoryInput: { backgroundColor: '#0a2a52', color: '#fff', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 9, marginBottom: 8 },
