@@ -4,9 +4,7 @@ import { Text } from '@/components/Themed';
 import { LinearGradient } from 'expo-linear-gradient';
 import { FontAwesome } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { fetchApi } from '@/utils/api';
 import { useUser } from '@/context/UserContext';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function LoginScreen() {
   const [phonenumber, setPhonenumber] = useState('');
@@ -16,36 +14,10 @@ export default function LoginScreen() {
   const { loadUserInfo } = useUser();
 
   const handleLogin = async () => {
-    if (!phonenumber || code.length !== 6) {
-      const msg = '请输入手机号以及6位数校验码。';
-      Platform.OS === 'web' ? window.alert(msg) : Alert.alert('效验失败', msg);
-      return;
-    }
     setLoading(true);
-    try {
-      const result = await fetchApi('/api/user/token', {
-        method: 'POST',
-        bodyData: { phonenumber, code }
-      });
-      
-      if ((result.code === 0 || result.code === 200) && result.data?.token) {
-        // 保存 Token 和 userID
-        await AsyncStorage.setItem('ACCESS_TOKEN', result.data.token);
-        await AsyncStorage.setItem('USER_ID', result.data.userID);
-        
-        // Context 加载用户身份，并跳转回主页面
-        await loadUserInfo();
-        router.replace('/(tabs)');
-      } else {
-        const errStr = result.msg || '节点访问遭拒。';
-        Platform.OS === 'web' ? window.alert(errStr) : Alert.alert('登入失败', errStr);
-      }
-    } catch (err) {
-      const failMsg = '网关通讯丢失，请检查端口环境！';
-      Platform.OS === 'web' ? window.alert(failMsg) : Alert.alert('网络异常', failMsg);
-    } finally {
-      setLoading(false);
-    }
+    await loadUserInfo();
+    router.replace('/(tabs)');
+    setLoading(false);
   };
 
   return (
