@@ -146,7 +146,7 @@ export default function RemoteControlScreen() {
       } else {
         const status = await trajectoryCommand('trajectory_record_start', {
           name: trajectoryName.trim() || '新轨迹',
-          sample_interval: 0.1,
+          sample_interval: 0.01,
           max_duration: 120,
         });
         setTrajectoryMode(status.mode || 'recording');
@@ -190,6 +190,25 @@ export default function RemoteControlScreen() {
         } catch (e: any) {
           addLog(`✗ 轨迹复刻：${e.message}`);
           Alert.alert('复刻失败', e.message);
+        } finally { setTrajectoryBusy(false); }
+      } },
+    ]);
+  };
+
+  const deleteTrajectory = () => {
+    if (!selectedTrajectory) return;
+    Alert.alert('删除轨迹', '删除后无法恢复，确定删除所选轨迹吗？', [
+      { text: '取消', style: 'cancel' },
+      { text: '删除', style: 'destructive', onPress: async () => {
+        setTrajectoryBusy(true);
+        try {
+          await trajectoryCommand('trajectory_delete', { trajectory_id: selectedTrajectory });
+          setSelectedTrajectory(null);
+          addLog('✓ 所选轨迹已删除');
+          await refreshTrajectories();
+        } catch (e: any) {
+          addLog(`✗ 删除轨迹：${e.message}`);
+          Alert.alert('删除失败', e.message);
         } finally { setTrajectoryBusy(false); }
       } },
     ]);
@@ -372,6 +391,9 @@ export default function RemoteControlScreen() {
             </TouchableOpacity>
             <TouchableOpacity style={[s.wideBtn, { backgroundColor: '#6c47e8' }]} onPress={refreshTrajectories} disabled={trajectoryBusy}>
               <Text style={s.btnText}>刷新轨迹</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={[s.wideBtn, { backgroundColor: '#7f1d1d' }]} onPress={deleteTrajectory} disabled={trajectoryBusy || trajectoryMode !== 'idle' || !selectedTrajectory}>
+              <Text style={s.btnText}>删除所选轨迹</Text>
             </TouchableOpacity>
           </View>
           {trajectories.map((item) => (

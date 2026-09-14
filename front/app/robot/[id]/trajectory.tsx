@@ -20,7 +20,7 @@ export default function TrajectoryScreen() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [name, setName] = useState('新轨迹');
-  const [sampleInterval, setSampleInterval] = useState('0.1');
+  const [sampleInterval, setSampleInterval] = useState('0.01');
   const [maxDuration, setMaxDuration] = useState('60');
   const [speedScale, setSpeedScale] = useState('1.0');
   const [smoothing, setSmoothing] = useState('0.15');
