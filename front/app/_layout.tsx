@@ -7,6 +7,7 @@ import { useEffect } from 'react';
 import { useColorScheme } from '@/components/useColorScheme';
 import { RobotProvider } from '@/context/RobotContext';
 import { UserProvider } from '@/context/UserContext';
+import { RobotRemoteProvider } from '@/context/RobotRemoteContext';
 
 export {
   // Catch any errors thrown by the Layout component.
@@ -60,11 +61,13 @@ function RootLayoutNav() {
     <ThemeProvider value={customTheme}>
       <UserProvider>
         <RobotProvider>
-          <Stack>
-            <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-            <Stack.Screen name="modal" options={{ presentation: 'modal' }} />
-            <Stack.Screen name="login" options={{ headerShown: false }} />
-          </Stack>
+          <RobotRemoteProvider>
+            <Stack>
+              <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+              <Stack.Screen name="modal" options={{ presentation: 'modal' }} />
+              <Stack.Screen name="login" options={{ headerShown: false }} />
+            </Stack>
+          </RobotRemoteProvider>
         </RobotProvider>
       </UserProvider>
     </ThemeProvider>
