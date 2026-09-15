@@ -10,7 +10,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Stack } from 'expo-router';
+import { Stack, useRouter } from 'expo-router';
 import Slider from '@react-native-community/slider';
 import { useRobotConnection } from '@/utils/robotSocket';
 import { discoverByIpHint } from '@/utils/robotDiscovery';
@@ -40,6 +40,7 @@ type TrajectoryItem = {
 // PLACEHOLDER_REST
 
 export default function RemoteControlScreen() {
+  const router = useRouter();
   const [ip, setIp] = useState('192.168.');
   const [log, setLog] = useState<string[]>([]);
   const [scanning, setScanning] = useState(false);
@@ -329,7 +330,13 @@ export default function RemoteControlScreen() {
             </TouchableOpacity>
           </View>
 
+          <TouchableOpacity style={s.fineControlBtn} onPress={() => router.push({ pathname: '/fine-control', params: { ip } })}>
+            <FontAwesome name="sliders" size={22} color="#fff" />
+            <View><Text style={s.fineControlTitle}>双臂与手指精细控制</Text><Text style={s.fineControlHint}>关节、手指和固定动作单独设置</Text></View>
+          </TouchableOpacity>
+
           {/* 关节控制 */}
+          {false && <>
           <View style={s.tabRow}>
             <Text style={s.sectionTitle}>关节控制</Text>
             <View style={s.tabGroup}>
@@ -383,6 +390,8 @@ export default function RemoteControlScreen() {
           </View>
           {(handSide === 'left' || handSide === 'both') && <><Text style={s.subTitle}>左手</Text>{FINGERS.map((name,i)=><View key={`lf${i}`} style={s.sliderRow}><Text style={s.jointName}>{name}</Text><Slider style={s.slider} minimumValue={0} maximumValue={1} value={leftFingers[i]} onValueChange={v=>changeFinger('left',i,v)} minimumTrackTintColor="#1a73e8" maximumTrackTintColor="#333" thumbTintColor="#1a73e8"/><Text style={s.jointValue}>{leftFingers[i].toFixed(2)}</Text></View>)}</>}
           {(handSide === 'right' || handSide === 'both') && <><Text style={s.subTitle}>右手</Text>{FINGERS.map((name,i)=><View key={`rf${i}`} style={s.sliderRow}><Text style={s.jointName}>{name}</Text><Slider style={s.slider} minimumValue={0} maximumValue={1} value={rightFingers[i]} onValueChange={v=>changeFinger('right',i,v)} minimumTrackTintColor="#1a73e8" maximumTrackTintColor="#333" thumbTintColor="#1a73e8"/><Text style={s.jointValue}>{rightFingers[i].toFixed(2)}</Text></View>)}</>}
+
+          </>}
 
           {/* 语音 */}
           <Text style={s.sectionTitle}>语音</Text>
@@ -473,6 +482,9 @@ const s = StyleSheet.create({
   row: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   actionBtn: { backgroundColor: '#0a2a52', borderRadius: 10, width: 68, height: 64, alignItems: 'center', justifyContent: 'center', gap: 3 },
   actionLabel: { color: '#ccc', fontSize: 10 },
+  fineControlBtn: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: '#087fb8', borderRadius: 12, padding: 14, marginTop: 12 },
+  fineControlTitle: { color: '#fff', fontWeight: '700', fontSize: 15 },
+  fineControlHint: { color: '#dbeafe', fontSize: 11, marginTop: 3 },
   tabRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 10 },
   tabGroup: { flexDirection: 'row', gap: 4 },
   tab: { paddingHorizontal: 12, paddingVertical: 4, borderRadius: 6, backgroundColor: '#0a2a52' },

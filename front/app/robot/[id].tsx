@@ -160,17 +160,6 @@ export default function RobotDetailScreen() {
         </View>
 
         <View style={styles.controlsContainer}>
-          <Pressable onPress={() => router.push({ pathname: '/robot/[id]/trajectory', params: { id: robotID } })}>
-            <LinearGradient colors={['#003d79', '#011e41']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.actionButton}>
-              <FontAwesome name="road" size={20} color="#00e5ff" />
-              <View style={styles.actionTextContainer}>
-                <Text style={styles.actionLabel}>运动轨迹</Text>
-                <Text style={styles.actionValue}>录制、管理并复刻动作</Text>
-              </View>
-              <FontAwesome name="angle-right" size={24} color="#475569" />
-            </LinearGradient>
-          </Pressable>
-
           <Pressable onPress={() => setToneModalVisible(true)}>
             <LinearGradient colors={['#003d79', '#011e41']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.actionButton}>
               <FontAwesome name="headphones" size={20} color="#00e5ff" />
