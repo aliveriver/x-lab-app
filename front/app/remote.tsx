@@ -276,8 +276,8 @@ export default function RemoteControlScreen() {
 
   const releaseBothHands = async () => {
     try {
-      await trajectoryCommand('control_both_hands', { left_angles: [0, 0, 0, 0, 0, 0], right_angles: [0, 0, 0, 0, 0, 0] });
-      addLog('✓ 双手手指已全松');
+      await trajectoryCommand('release_both_hands');
+      addLog('✓ 双手手指已全松（高优先级持续覆盖）');
     } catch (e: any) {
       addLog(`✗ 双手全松：${e.message}`);
       Alert.alert('手指控制失败', e.message);
