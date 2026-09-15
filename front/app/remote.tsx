@@ -181,7 +181,7 @@ export default function RemoteControlScreen() {
         try {
           const status = await trajectoryCommand('trajectory_replay_start', {
             trajectory_id: selectedTrajectory,
-            speed_scale: 1,
+            speed_scale: 0.5,
             smoothing: 0.15,
             repeat_count: 1,
             safety_confirmed: true,
@@ -271,6 +271,16 @@ export default function RemoteControlScreen() {
     } catch (e: any) {
       addLog(`✗ 手臂${tight ? '绷紧' : '松弛'}：${e.message}`);
       Alert.alert('手臂状态切换失败', e.message);
+    }
+  };
+
+  const releaseBothHands = async () => {
+    try {
+      await trajectoryCommand('control_both_hands', { left_angles: [0, 0, 0, 0, 0, 0], right_angles: [0, 0, 0, 0, 0, 0] });
+      addLog('✓ 双手手指已全松');
+    } catch (e: any) {
+      addLog(`✗ 双手全松：${e.message}`);
+      Alert.alert('手指控制失败', e.message);
     }
   };
 
@@ -417,6 +427,7 @@ export default function RemoteControlScreen() {
             <TouchableOpacity style={[s.wideBtn, s.tightBtn]} onPress={() => setArmTension('left', true)}><Text style={s.btnText}>左臂绷紧</Text></TouchableOpacity>
             <TouchableOpacity style={[s.wideBtn, s.relaxBtn]} onPress={() => setArmTension('right', false)}><Text style={s.btnText}>右臂松弛</Text></TouchableOpacity>
             <TouchableOpacity style={[s.wideBtn, s.tightBtn]} onPress={() => setArmTension('right', true)}><Text style={s.btnText}>右臂绷紧</Text></TouchableOpacity>
+            <TouchableOpacity style={[s.wideBtn, { backgroundColor: '#6c47e8' }]} onPress={releaseBothHands}><Text style={s.btnText}>双手手指全松</Text></TouchableOpacity>
           </View>
           <TextInput
             style={s.trajectoryInput}
