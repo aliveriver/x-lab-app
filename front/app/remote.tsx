@@ -251,7 +251,7 @@ export default function RemoteControlScreen() {
   };
 
   const savePose = async () => {
-    await trajectoryCommand('arm_pose_save', { name: poseName, left_positions: leftJoints, right_positions: rightJoints });
+    await trajectoryCommand('arm_pose_save', { name: poseName });
     addLog('✓ 固定动作已保存'); await refreshPoses();
   };
 
@@ -430,6 +430,23 @@ export default function RemoteControlScreen() {
               <Text style={s.trajectoryMeta}>{item.duration.toFixed(1)} 秒 · {item.frame_count} 帧</Text>
             </TouchableOpacity>
           ))}
+
+          <View style={s.trajectoryHeader}>
+            <Text style={s.sectionTitle}>固定动作（双臂+双手）</Text>
+          </View>
+          <Text style={s.poseHint}>保存时直接读取机器人当前双臂和双手关节反馈。</Text>
+          <View style={s.sayRow}>
+            <TextInput style={s.sayInput} value={poseName} onChangeText={setPoseName} placeholder="固定动作名称" placeholderTextColor="#666" />
+            <TouchableOpacity style={[s.btn, { marginLeft: 8 }]} onPress={savePose}><Text style={s.btnText}>读取并保存</Text></TouchableOpacity>
+            <TouchableOpacity style={[s.btn, { marginLeft: 8 }]} onPress={refreshPoses}><Text style={s.btnText}>刷新</Text></TouchableOpacity>
+          </View>
+          {poses.map((pose) => (
+            <View key={pose.id} style={s.poseRow}>
+              <Text style={s.poseText}>{pose.name}</Text>
+              <TouchableOpacity style={s.smallBtn} onPress={() => executePose(pose)}><Text style={s.btnText}>执行</Text></TouchableOpacity>
+              <TouchableOpacity style={[s.smallBtn, { backgroundColor: '#7f1d1d' }]} onPress={() => deletePose(pose)}><Text style={s.btnText}>删除</Text></TouchableOpacity>
+            </View>
+          ))}
         </ScrollView>
       )}
 
@@ -509,6 +526,7 @@ const s = StyleSheet.create({
   trajectorySelected: { borderColor: '#00e5ff' },
   trajectoryName: { color: '#fff', fontSize: 13, fontWeight: '600' },
   trajectoryMeta: { color: '#8ab4f8', fontSize: 11, marginTop: 3 },
+  poseHint: { color: '#8ab4f8', fontSize: 12, lineHeight: 18, marginBottom: 8 },
   logBox: { height: 160, borderTopWidth: 1, borderTopColor: '#1a5c9e', padding: 8 },
   logTitle: { color: '#8ab4f8', fontSize: 12, marginBottom: 4 },
   logScroll: { flex: 1 },
