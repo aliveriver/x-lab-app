@@ -181,7 +181,7 @@ export default function RemoteControlScreen() {
         try {
           const status = await trajectoryCommand('trajectory_replay_start', {
             trajectory_id: selectedTrajectory,
-            speed_scale: 0.5,
+            speed_scale: 1,
             smoothing: 0.15,
             repeat_count: 1,
             safety_confirmed: true,
