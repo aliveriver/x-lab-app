@@ -264,6 +264,16 @@ export default function RemoteControlScreen() {
     await trajectoryCommand('arm_pose_delete', { pose_id: pose.id }); await refreshPoses();
   };
 
+  const setArmTension = async (side: 'left' | 'right', tight: boolean) => {
+    try {
+      await trajectoryCommand('arm_tension', { side, tight });
+      addLog(`✓ ${side === 'left' ? '左臂' : '右臂'}已${tight ? '绷紧' : '松弛'}`);
+    } catch (e: any) {
+      addLog(`✗ 手臂${tight ? '绷紧' : '松弛'}：${e.message}`);
+      Alert.alert('手臂状态切换失败', e.message);
+    }
+  };
+
   const stateColor = state === 'connected' ? '#4caf50' : state === 'connecting' ? '#ff9800' : '#f44336';
 
   // PLACEHOLDER_RENDER
@@ -402,6 +412,12 @@ export default function RemoteControlScreen() {
             <Text style={s.sectionTitle}>轨迹录制与复刻</Text>
             <Text style={s.trajectoryState}>{trajectoryMode === 'recording' ? '● 录制中' : trajectoryMode === 'replaying' ? '▶ 复刻中' : '空闲'}</Text>
           </View>
+          <View style={s.trajectoryActions}>
+            <TouchableOpacity style={[s.wideBtn, s.relaxBtn]} onPress={() => setArmTension('left', false)}><Text style={s.btnText}>左臂松弛</Text></TouchableOpacity>
+            <TouchableOpacity style={[s.wideBtn, s.tightBtn]} onPress={() => setArmTension('left', true)}><Text style={s.btnText}>左臂绷紧</Text></TouchableOpacity>
+            <TouchableOpacity style={[s.wideBtn, s.relaxBtn]} onPress={() => setArmTension('right', false)}><Text style={s.btnText}>右臂松弛</Text></TouchableOpacity>
+            <TouchableOpacity style={[s.wideBtn, s.tightBtn]} onPress={() => setArmTension('right', true)}><Text style={s.btnText}>右臂绷紧</Text></TouchableOpacity>
+          </View>
           <TextInput
             style={s.trajectoryInput}
             value={trajectoryName}
@@ -522,6 +538,8 @@ const s = StyleSheet.create({
   trajectoryInput: { backgroundColor: '#0a2a52', color: '#fff', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 9, marginBottom: 8 },
   trajectoryActions: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 8 },
   wideBtn: { backgroundColor: '#1a73e8', borderRadius: 8, paddingHorizontal: 14, paddingVertical: 11 },
+  relaxBtn: { backgroundColor: '#b45309' },
+  tightBtn: { backgroundColor: '#087f5b' },
   trajectoryItem: { backgroundColor: '#0a2a52', borderWidth: 1, borderColor: '#1a5c9e', borderRadius: 8, padding: 10, marginBottom: 6 },
   trajectorySelected: { borderColor: '#00e5ff' },
   trajectoryName: { color: '#fff', fontSize: 13, fontWeight: '600' },
